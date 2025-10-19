@@ -1,97 +1,86 @@
+// Controller Layer: Exposes the secure internal REST API (P2.1)
+const express = require('express');
+const router = express.Router();
+const { generateUniqueTransID } = require('../id_generator'); // P1.2 - PATH CORRECTED
+const transactionRepo = require('../transaction_repository'); // Repository - PATH CORRECTED
+const { buildXmlRequest, sendRequest } = require('../xml_protocol'); // Protocol Service - PATH CORRECTED
+
+// Middleware (You would add Auth here later)
+router.use(express.json());
+
 /**
- * P2.1: Vending Controller
- * * Express Router responsible for handling all HTTP requests related to vending,
- * * validation, and calling the core Protocol Service.
- * * Implements F-1.1.2 (PURCHASE).
+ * Internal REST Endpoint: POST /api/vending/purchase
+ * Implements core vending logic (F-1.1.2)
  */
+router.post('/purchase', async (req, res) => {
+    const { meterNum, amount, calcMode, verifyData } = req.body; // verifyData can be DONOTVERIFYDATA or a code
+    
+    // 1. Generate unique transaction ID (P1.2)
+    const transID = generateUniqueTransID();
+    const userId = req.headers['x-user-id'] || 'anonymous'; // Replace with actual auth logic
 
-const router = require('express').Router();
-const { vendSingleStep } = require('../services/protocol.service');
-const { logRequest, updateResponse } = require('../repositories/transaction.repository');
+    // 2. Build the XML request (P1.4)
+    const xmlRequest = buildXmlRequest('PURCHASE', {
+        transID, meterNum, calcMode: calcMode || 'M', amount, verifyData: verifyData || 'DONOTVERIFYDATA'
+    });
 
-/**
- * POST /api/v1/vending/purchase-single
- * Handles the single-step vending process (F-1.2.3).
- * Accepts: meterNum, amount, and an optional userId (for logging).
- */
-router.post('/purchase-single', async (req, res) => {
-    // These are the inputs from the Third Party POS/Web app
-    const { meterNum, amount, userId } = req.body; 
-
-    // --- 1. Basic Input Validation ---
-    if (!meterNum || !amount || isNaN(parseFloat(amount)) || parseFloat(amount) <= 0) {
-        return res.status(400).json({ 
-            error: 'Input Error', 
-            message: 'Meter number and a positive amount are required.' 
+    // 3. Log the initial request (P1.1.D)
+    let auditId;
+    try {
+        auditId = await transactionRepo.createRequestLog({
+            transId: transID,
+            meterNum,
+            actionRequested: 'PURCHASE',
+            requestXml: xmlRequest,
+            userId
         });
+    } catch (dbError) {
+        // If logging fails, abort and return internal server error
+        return res.status(500).json({ success: false, message: 'Internal audit logging failed.' });
     }
 
-    // --- 2. Transaction Execution ---
-    let transactionResult;
-    let transID; // Will be set by the Protocol Service
-    let requestXML; // Will be set by the Protocol Service
-
+    // 4. Send the request to the Hub (P1.4)
     try {
-        // The Protocol Service handles all security, XML, and HTTPS communication.
-        transactionResult = await vendSingleStep(meterNum, amount);
+        const hubResponse = await sendRequest('PURCHASE', xmlRequest);
+        const hubResult = hubResponse.result;
+        const resultAttr = hubResponse.result.$; // Extract root attributes
         
-        transID = transactionResult.transID;
-        requestXML = transactionResult.requestXML;
-        const responseXML = transactionResult.responseXML;
-        const parsedData = transactionResult.parsedData;
-        
-        // --- 3. Audit Logging (Update Response) ---
-        // Check if the transaction was successful (Hub specific logic, usually 0 or 1)
-        const hubState = parsedData.$.state === '0' ? 0 : parsedData.$.state; 
-        const hubErrorCode = parsedData.$.state !== '0' ? parsedData.$.state : null;
+        // 5. Process the response (P2.5: Token Pre-Processing will go here later)
+        let tokenReceived = null;
 
-        // Extract key data fields from the XML response
-        const tokenReceived = parsedData.Property.find(p => p.$.name === 'token')?.$.value;
-        const invoiceNum = parsedData.Property.find(p => p.$.name === 'invoiceNum')?.$.value;
-
-        // Note: The logRequest call would typically happen BEFORE vendSingleStep
-        // but for a clean start, we rely on ProtocolService to internally handle P1.1.D calls
-        
-        await updateResponse(transID, {
-            hubState: hubState,
-            hubErrorCode: hubErrorCode,
-            tokenReceived: tokenReceived,
-            amountRequested: amount,
-            invoiceNum: invoiceNum,
-            responseXML: responseXML
-        });
-
-        // --- 4. Final Response to Client ---
-        if (hubState === 0) {
-            res.status(200).json({
-                status: 'success',
-                transID: transID,
-                token: tokenReceived, // F-1.3.1
-                invoice: invoiceNum,
-                details: parsedData // Full details for the consuming application
-            });
-        } else {
-             // NF-2.2.2: Provide user-friendly error details here (mapping required)
-            res.status(502).json({
-                status: 'failed',
-                transID: transID,
-                errorCode: hubErrorCode,
-                message: `Hub Error: ${hubErrorCode}. Consult documentation for details.`
-            });
+        // **THE SYNTAX FIX IS HERE:** Safely check for the Property array before using .find()
+        if (hubResult.Property && Array.isArray(hubResult.Property)) {
+            const tokenElement = hubResult.Property.find(p => p.$.name === 'token');
+            tokenReceived = tokenElement ? tokenElement.$.value : null;
         }
+        
+        const finalResponseData = {
+            state: parseInt(resultAttr.state),
+            code: resultAttr.code,
+            token: tokenReceived,
+            invoiceNum: resultAttr.invoice,
+            amountRequested: amount,
+            responseXml: JSON.stringify(hubResponse) // Store full JSON/XML for audit
+        };
+
+        // 6. Update audit log (P1.1.D)
+        await transactionRepo.updateResponseLog(auditId, finalResponseData);
+        
+        // 7. Send clean, simple JSON response to the Front-End
+        res.status(200).json({ 
+            success: finalResponseData.state === 0, 
+            transactionId: transID,
+            hubCode: finalResponseData.code,
+            token: finalResponseData.token, // Front-end handles presentation compliance (P3.2)
+            receiptData: resultAttr
+        });
 
     } catch (error) {
-        // Handle critical errors (network failure, XML parsing failure, missing credentials)
-        console.error(`CRITICAL FAILURE for ${meterNum}:`, error.message);
-        
-        // Respond to the client with a generic 500 error for critical system failures
-        res.status(500).json({
-            error: 'System Error',
-            message: `Gateway failed to process the request. ${error.message}`
-        });
+        // NF-2.2.2: Handle communication/protocol errors
+        console.error('Final transaction failure:', error.message);
+        res.status(500).json({ success: false, message: 'Vending failed due to Hub error or network issue.' });
     }
 });
-
 
 module.exports = router;
 
