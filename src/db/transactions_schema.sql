@@ -11,7 +11,7 @@ CREATE TABLE transactions (
     meter_num VARCHAR(20) NOT NULL,         -- The meter number involved in the transaction
 
     -- Request Details
-    action_requested VARCHAR(10) NOT NULL,  -- e.g., 'PURCHASE', 'SEARCH', 'BALANCE'
+    action_requested VARCHAR(20) NOT NULL,  -- e.g., 'PURCHASE', 'SEARCH', 'BALANCE'
     request_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     request_xml TEXT NOT NULL,              -- The full XML sent to the Hub
 
