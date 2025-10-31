@@ -160,7 +160,7 @@ async function getLastTransactions(req, res) {
 
     } catch (error) {
         // 5. Handle Critical Errors
-      /  console.error(`[CONTROLLER ERROR] GETTRANS failed for Meter ${meterNum}:`, error.message);
+        console.error(`[CONTROLLER ERROR] GETTRANS failed for Meter ${meterNum}:`, error.message);
         res.status(500).json({ 
             success: false, 
             message: 'Server failed to process get last transactions request.',
