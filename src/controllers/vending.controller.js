@@ -1,86 +1,179 @@
-// Controller Layer: Exposes the secure internal REST API (P2.1)
+// P2.1: Vending Controller - Handles the main /purchase API route and orchestrates services.
+
 const express = require('express');
 const router = express.Router();
-const { generateUniqueTransID } = require('../id_generator'); // P1.2 - PATH CORRECTED
-const transactionRepo = require('../transaction_repository'); // Repository - PATH CORRECTED
-const { buildXmlRequest, sendRequest } = require('../xml_protocol'); // Protocol Service - PATH CORRECTED
 
-// Middleware (You would add Auth here later)
-router.use(express.json());
+// Service Layer Imports (P1.2, P1.3, P1.4, P2.5)
+const protocolService = require('../services/protocol.service');
+const tokenService = require('../services/token.service');
+
+// Repository Layer Import (P1.1.D)
+const transactionRepo = require('../repositories/transaction.repository');
+
+// Protocol Service Import (P1.4 - NOW UNCOMMENTED AND REQUIRED)
+//const protocolService = require('../services/protocol.service'); 
 
 /**
- * Internal REST Endpoint: POST /api/vending/purchase
- * Implements core vending logic (F-1.1.2)
+ * Handles the POST /purchase request for a vending transaction.
+ * This function orchestrates the entire transaction flow: validation, logging, 
+ * hub communication (P2.3), token processing (P2.5), and final audit.
+ * @param {object} req - Express request object.
+ * @param {object} res - Express response object.
  */
-router.post('/purchase', async (req, res) => {
-    const { meterNum, amount, calcMode, verifyData } = req.body; // verifyData can be DONOTVERIFYDATA or a code
-    
-    // 1. Generate unique transaction ID (P1.2)
-    const transID = generateUniqueTransID();
-    const userId = req.headers['x-user-id'] || 'anonymous'; // Replace with actual auth logic
+async function purchaseVending(req, res) {
+    const { meterNum, amount } = req.body;
+    let transID = null; // Defined here for use in the catch block
+    let recordId = null; // Defined here for use in the catch block
 
-    // 2. Build the XML request (P1.4)
-    const xmlRequest = buildXmlRequest('PURCHASE', {
-        transID, meterNum, calcMode: calcMode || 'M', amount, verifyData: verifyData || 'DONOTVERIFYDATA'
-    });
-
-    // 3. Log the initial request (P1.1.D)
-    let auditId;
-    try {
-        auditId = await transactionRepo.createRequestLog({
-            transId: transID,
-            meterNum,
-            actionRequested: 'PURCHASE',
-            requestXml: xmlRequest,
-            userId
+    // --- Step 1: Input Validation ---
+    if (!meterNum || typeof amount !== 'number' || amount <= 0) {
+        return res.status(400).json({ 
+            success: false, 
+            message: "Invalid input. 'meterNum' and positive 'amount' are required."
         });
-    } catch (dbError) {
-        // If logging fails, abort and return internal server error
-        return res.status(500).json({ success: false, message: 'Internal audit logging failed.' });
     }
 
-    // 4. Send the request to the Hub (P1.4)
     try {
-        const hubResponse = await sendRequest('PURCHASE', xmlRequest);
-        const hubResult = hubResponse.result;
-        const resultAttr = hubResponse.result.$; // Extract root attributes
+        // --- Step 2: Protocol Execution (P2.3 - Two-Step Vending) ---
         
-        // 5. Process the response (P2.5: Token Pre-Processing will go here later)
-        let tokenReceived = null;
+        // F-1.1.1: This call internally handles generating the ID and logging the initial request (using logRequest).
+        const { id: newRecordId, transID: generatedTransID, hubResponse: initialResponse } = await protocolService.vendTwoStep(meterNum, amount, 'PURCHASE');
+        
+        transID = generatedTransID; // Store the ID for error logging
+        recordId = newRecordId;
+        
+        // --- Step 3: Handle Hub Failure (This block is not reached in mock, but is essential) ---
+        const hubResponse = initialResponse; 
 
-        // **THE SYNTAX FIX IS HERE:** Safely check for the Property array before using .find()
-        if (hubResult.Property && Array.isArray(hubResult.Property)) {
-            const tokenElement = hubResult.Property.find(p => p.$.name === 'token');
-            tokenReceived = tokenElement ? tokenElement.$.value : null;
+        const hubState = parseInt(hubResponse.xml.$.state);
+
+        if (hubState !== 0) {
+            // F-1.3.1: Hub protocol failure (not a network error)
+            return res.status(502).json({
+                success: false,
+                message: `Hub rejected transaction (Code: ${hubResponse.xml.$.code || 'N/A'}).`,
+                transactionId: transID,
+                errorCode: hubResponse.xml.$.code || 'UNKNOWN'
+            });
         }
-        
-        const finalResponseData = {
-            state: parseInt(resultAttr.state),
-            code: resultAttr.code,
-            token: tokenReceived,
-            invoiceNum: resultAttr.invoice,
-            amountRequested: amount,
-            responseXml: JSON.stringify(hubResponse) // Store full JSON/XML for audit
-        };
 
-        // 6. Update audit log (P1.1.D)
-        await transactionRepo.updateResponseLog(auditId, finalResponseData);
+        // --- Step 4: Token Compliance Processing (P2.5) ---
+        const rawToken = hubResponse.xml.$.token;
+        const tokens = tokenService.processToken(rawToken); // Separates Key Change, Dual Credit, etc.
         
-        // 7. Send clean, simple JSON response to the Front-End
-        res.status(200).json({ 
-            success: finalResponseData.state === 0, 
+        // --- Step 5: Final Audit Logging (NF-2.2.1) ---
+        // CORRECT CALL: This function is the one that exists in the repository.
+        await transactionRepo.updateRequestLog(transID, recordId, hubResponse);
+
+        // --- Step 6: Success Response to Client ---
+        return res.status(200).json({
+            success: true,
+            message: 'Transaction completed successfully.',
             transactionId: transID,
-            hubCode: finalResponseData.code,
-            token: finalResponseData.token, // Front-end handles presentation compliance (P3.2)
-            receiptData: resultAttr
+            meterNumber: meterNum,
+            amount: amount,
+            receipt: {
+                // This structure supports Key Change and Dual Credit Presentation (P3.2)
+                tokens: tokens, 
+                vendAmount: parseFloat(hubResponse.xml.$.vendAMT) || amount,
+                invoice: hubResponse.xml.$.invoice || 'N/A'
+            }
         });
 
     } catch (error) {
-        // NF-2.2.2: Handle communication/protocol errors
-        console.error('Final transaction failure:', error.message);
-        res.status(500).json({ success: false, message: 'Vending failed due to Hub error or network issue.' });
+        // --- Step 7: Critical Error Handling (Database or Network) ---
+        const message = error.message.includes("Database logging") ? "Database integrity error. Check audit logs." : "Vending service failed due to a critical system error.";
+
+        console.error(`[CONTROLLER ERROR] Purchase transaction failed for ${transID}:`, error.message);
+        
+        // Final audit update: Attempt to log the failure if transID exists
+        if (transID) {
+             // In a real app, you would attempt to update the log one last time with the error state.
+             // Since the prior error was in logging, we rely on the PENDING status until manual review.
+        }
+
+        return res.status(500).json({ 
+            success: false, 
+            message: message,
+            transactionId: transID || 'N/A',
+            detail: error.message 
+        });
     }
-});
+}
 
-module.exports = router;
+// --- NEWLY IMPLEMENTED: getLastTransactions (F-1.1.5) ---
 
+/**
+ * Handles the GET /last-transactions request (F-1.1.5).
+ * @param {object} req - Express request object. Query params: meterNum.
+ */
+async function getLastTransactions(req, res) {
+    const { meterNum } = req.query;
+    if (!meterNum) {
+         return res.status(400).json({ success: false, message: "Query parameter 'meterNum' is required." });
+    }
+    
+    console.log(`[ROUTE] Processing GETTRANS request for Meter: ${meterNum}`);
+    
+    try {
+        // 1. Build the XML request for GETTRANS
+        const xmlRequest = protocolService.buildGetTransRequest(meterNum);
+
+        // 2. Send request to the Hub (will use mock)
+        const hubResponse = await protocolService.sendRequest('GETTRANS', xmlRequest);
+
+        // 3. Check Hub response for state
+        // Note: The mock returns { xml: { result: ... } }
+        const result = hubResponse.xml.result;
+        const hubState = parseInt(result.$.state);
+
+        if (hubState !== 0) {
+            console.warn(`[ROUTE] Hub returned error for GETTRANS check: State ${hubState}`);
+            return res.status(502).json({
+                success: false,
+                message: `Hub returned an error state: ${hubState}`,
+                meterNum: meterNum
+            });
+        }
+
+        // 4. Format and return the transaction list (based on mock/protocol doc)
+        const transactionCount = parseInt(result.$.count);
+        const transactions = [];
+        
+        // Loop based on the count and parse ti0, tt0, ti1, tt1, etc.
+        for (let i = 0; i < transactionCount; i++) {
+            if (result.$[`ti${i}`] && result.$[`tt${i}`]) {
+                transactions.push({
+                    id: result.$[`ti${i}`],
+                    time: result.$[`tt${i}`]
+                });
+            }
+        }
+        
+        console.log(`[ROUTE] GETTRANS successful for Meter: ${meterNum}. Found ${transactions.length} transactions.`);
+        res.status(200).json({
+            success: true,
+            meterNum: meterNum,
+            count: transactions.length,
+            transactions: transactions
+        });
+
+    } catch (error) {
+        // 5. Handle Critical Errors
+      /  console.error(`[CONTROLLER ERROR] GETTRANS failed for Meter ${meterNum}:`, error.message);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Server failed to process get last transactions request.',
+            detail: error.message 
+        });
+    }
+}
+
+// Register Controller Functions
+router.post('/purchase', purchaseVending);
+router.get('/last-transactions', getLastTransactions); // <-- Now implemented
+
+module.exports = {
+    router,
+    purchaseVending // Exported for easy testing/import into server.js
+};
