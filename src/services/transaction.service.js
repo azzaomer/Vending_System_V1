@@ -9,6 +9,8 @@ const Transaction = require('../models/transaction.model');
  */
 async function findTransactionBy(column, value) {
     try {
+        console.log(`[SERVICE] Finding transaction by ${column}`);
+        // This calls the model's findBy function
         const transaction = await Transaction.findBy(column, value);
         return transaction;
     } catch (error) {
@@ -31,13 +33,12 @@ async function createVendTransaction(vendRequestId, meterNum, itemId, amount) {
         
         // This data object will be inserted into the database
         const newTransactionData = {
-            vend_request_id: vendRequestId,
+            trans_id: vendRequestId,
             meter_num: meterNum,
-            item_id: itemId,
-            item_price: amount,
-            status: 'Pending', // Initial status
-            created_at: new Date(),
-            updated_at: new Date()
+            amount_requested: amount,
+            hub_state: 'Pending', // Initial state
+            action_requested: 'VEND',
+            request_timestamp: new Date()
         };
 
         // Calls the model's 'create' function
@@ -63,11 +64,11 @@ async function updateTransactionWithHubResponse(vendRequestId, status, errorCode
         console.log(`[SERVICE] Updating transaction for ID: ${vendRequestId} with status: ${status}`);
         
         const updateData = {
-            status: status,
+            hub_state: status,
             hub_error_code: errorCode,
-            hub_response_details: details,
+            response_xml: details, // Storing raw response
             token_received: token,
-            updated_at: new Date()
+            response_timestamp: new Date()
         };
 
         // Calls the model's 'updateByVendId' function
