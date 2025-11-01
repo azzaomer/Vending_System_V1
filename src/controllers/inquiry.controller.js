@@ -201,15 +201,19 @@ async function getLastTransactions(req, res) {
         return res.status(200).json({
             success: true,
             message: `Transaction found for ${queryKey}: ${queryValue}.`,
-            transaction: {
-                vend_request_id: transaction.vend_request_id,
-                transaction_id: transaction.transaction_id,
-                item_id: transaction.item_id,
-                item_price: transaction.item_price,
-                status: transaction.status,
-                created_at: transaction.created_at,
-                updated_at: transaction.updated_at,
-                hubResponseDetails: transaction.hub_response_details,
+                transaction: {
+                id: transaction.id,
+                transId: transaction.trans_id,
+                meterNum: transaction.meter_num,
+                action: transaction.action_requested,
+                requestTime: transaction.request_timestamp,
+                responseTime: transaction.response_timestamp,
+                hubState: transaction.hub_state,
+                errorCode: transaction.hub_error_code,
+                token: transaction.token_received,
+                invoice: transaction.invoice_num,
+                // Include the parsed response details if available
+                hubResponseDetails: transaction.response_data ? (transaction.response_data.xml || transaction.response_data) : null
             }
         });
 
