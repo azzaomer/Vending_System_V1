@@ -1,7 +1,7 @@
 // P-1.1.1: Controller for handling vending-related requests
 const protocolService = require('../services/protocol.service');
 const transactionService = require('../services/transaction.service');
-const { generateVendRequestId } = require('../utils/idHelper');
+const { generateUniqueTransID } = require('../id_generator');
 
 /**
  * F-1.1.1: Check available items.
@@ -26,7 +26,7 @@ async function handlePurchase(req, res) {
         return res.status(400).json({ success: false, message: "Missing required fields: meterNum, itemId, and amount are required." });
     }
 
-    const vendRequestId = generateVendRequestId();
+    const vendRequestId = generateUniqueTransID();
     const initialTransactionData = {
         vend_request_id: vendRequestId,
         meter_num: meterNum,
