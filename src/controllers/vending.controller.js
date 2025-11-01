@@ -86,7 +86,7 @@ async function purchaseVending(req, res) {
 
     } catch (error) {
         // --- 6. Handle Internal Errors ---
-        console.error(`[CONTROLLER] Critical error in handlePurchase:`, error);
+        console.error(`[CONTROLLER] Critical error in purchaseVending:`, error);
         
         // If the transaction was created but the hub call failed,
         // update the record to 'error'.
