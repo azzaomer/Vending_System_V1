@@ -253,9 +253,10 @@ async function getLastTransactions(req, res) {
     return res.status(501).json({ success: false, message: 'GETTRANS endpoint not implemented yet.' });
 }
 
-module.exports = {
-    searchTransaction,
-    getLastTransactions,
-};
+// --- Register Controller Routes ---
+router.get('/search', searchTransaction);
+router.get('/balance', checkBalance); // Placeholder
+router.get('/last-transactions', getLastTransactions); // Placeholder using /last-transactions for clarity
 
+module.exports = router; // Export the router for server.js to use
 
