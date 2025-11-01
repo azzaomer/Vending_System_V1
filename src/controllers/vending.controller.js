@@ -18,7 +18,7 @@ async function checkItems(req, res) {
  * F-1.1.2: Handle a new vending purchase request.
  * This is the main logic you asked for.
  */
-async function handlePurchase(req, res) {
+async function purchaseVending(req, res) {
     const { meterNum, itemId, amount } = req.body;
 
     // --- 1. Validation ---
@@ -105,5 +105,5 @@ async function handlePurchase(req, res) {
 
 module.exports = {
     checkItems,
-    handlePurchase
+    purchaseVending
 };
