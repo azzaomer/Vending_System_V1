@@ -16,7 +16,7 @@ router.get('/check-items', vendingController.checkItems);
  * @body {string} itemId - The ID of the item to purchase.
  * @body {number} amount - The amount for the purchase.
  */
-router.POST('/purchase', vendingController.handlePurchase);
+router.POST('/purchase', vendingController.purchaseVending);
 
 // Export the router to be used in server.js
 module.exports = router;
