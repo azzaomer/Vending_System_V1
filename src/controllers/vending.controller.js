@@ -31,82 +31,80 @@ async function purchaseVending(req, res) {
 
     const vendRequestId = generateUniqueTransID();
     console.log(`[CONTROLLER] New purchase request received. Generated ID: ${vendRequestId}`);
-    const initialTransactionData = {
-        vend_request_id: vendRequestId,
-        meter_num: meterNum,
-        item_price: parseFloat(amount),
-        status: 'pending', // Mark as 'pending' before contacting the hub
-        action_requested: 'VEND',
-        request_timestamp: new Date()
-    };
-
-    let transaction; // To store the transaction record
-
     try {
         // --- 2. Create Initial Transaction Record ---
-        // Log the attempt in our database *before* making the external call.
-        transaction = await transactionService.createVendTransaction(initialTransactionData);
-        console.log(`[CONTROLLER] Created pending transaction: ${vendRequestId}`);
+        console.log(`[CONTROLLER] Creating initial transaction record...`);
+        const newTransaction = await transactionService.createVendTransaction(
+            vendRequestId, 
+            meterNum, 
+            amount
+        );
 
-        // --- 3. Call External Hub ---
-        // Send the VEND request to the protocol service
+    // --- 3. Call Protocol Service (Hub Simulation) ---
+        console.log(`[CONTROLLER] Calling protocol service for ID: ${vendRequestId}`);
+        // This 'VEND' action will now trigger the REAL implementation
         const hubResponse = await protocolService.sendRequest('VEND', {
-            meterNum,
-            amount,
-            vendRequestId
+            vend_request_id: vendRequestId,
+            meter_num: meterNum,
+            // 'itemId' is no longer part of this payload
+            amount: amount,
+            timestamp: new Date().toISOString()
         });
 
         // --- 4. Update Transaction with Hub Response ---
-        const updateData = {
-            status: hubResponse.success ? 'completed' : 'failed',
-            transaction_id: hubResponse.transaction_id || null,
-            token_received: hubResponse.token || null,
-            hub_state: hubResponse.state || 'unknown',
-            hub_error_code: hubResponse.errorCode || null,
-            hub_response_details: JSON.stringify(hubResponse.details || {}),
-            response_timestamp: new Date()
-        };
+        console.log(`[CONTROLLER] Hub response received. Updating transaction...`);
+        // UPDATED: Pass the 'invoice' from the hub response
+        const updatedTransaction = await transactionService.updateTransactionWithHubResponse(
+            vendRequestId,
+            hubResponse.status, // 'Success' or 'Failed'
+            hubResponse.errorCode, // e.g., '00' or '101'
+            hubResponse.rawResponse, // The simulated XML string
+            hubResponse.token, // The simulated token or null
+            hubResponse.invoice // <-- NEWLY ADDED
+        );
 
-        transaction = await transactionService.updateTransactionByVendId(vendRequestId, updateData);
-        console.log(`[CONTROLLER] Updated transaction ${vendRequestId} to status: ${updateData.status}`);
-
-        // --- 5. Send Final Response to Client ---
-        if (hubResponse.success) {
-            // Purchase was successful
-            return res.status(200).json({
-                success: true,
-                message: 'Purchase successful.',
-                transaction: transaction
-            });
-        } else {
-            // Purchase was denied by the hub
-            return res.status(402).json({ // 402 = Payment Required (or in this case, failed)
-                success: false,
-                message: hubResponse.message || 'Purchase failed at the hub.',
-                transaction: transaction
-            });
-        }
+        // --- 5. Send Final Response ---
+        return res.status(200).json({
+            success: true,
+            message: `Transaction ${hubResponse.status}.`,
+            transaction: updatedTransaction // Return the final, updated transaction
+        });
 
     } catch (error) {
-        // --- 6. Handle Internal Errors ---
-        console.error(`[CONTROLLER] Critical error in purchaseVending:`, error);
+        // This is a critical failure (e.g., database connection)
+        console.error(`[CONTROLLER] Critical error in handlePurchase:`, error);
         
-        // If the transaction was created but the hub call failed,
-        // update the record to 'error'.
-        if (transaction) {
-            await transactionService.updateTransactionByVendId(vendRequestId, {
-                status: 'error',
-                hub_response_details: JSON.stringify({ internalError: error.message }),
-                response_timestamp: new Date()
-            });
+        // Try to update the transaction to 'Failed' if it was already created
+        try {
+            await transactionService.updateTransactionWithHubResponse(
+                vendRequestId,
+                'Failed',
+                '500', // Internal Server Error
+                error.message,
+                null
+            );
+        } catch (updateError) {
+            console.error(`[CONTROLLER] Failed to even update transaction to failed state:`, updateError);
         }
-        
-        return res.status(500).json({ success: false, message: 'Internal server error.' });
+
+        return res.status(500).json({
+            success: false,
+            message: 'Internal server error during transaction.'
+        });
     }
 }
 
 
+/**
+ * Placeholder for checking available items.
+ */
+async function checkItems(req, res) {
+    // F-1.1.3: Logic for GETITEMS action will go here
+    return res.status(501).json({ success: false, message: 'checkItems endpoint not implemented yet.' });
+}
+
+// Export the controller functions
 module.exports = {
-    checkItems,
-    purchaseVending
+    purchaseVending,
+    checkItems
 };
