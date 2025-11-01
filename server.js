@@ -1,102 +1,82 @@
-/**
- * Vending Gateway Application Entry Point (P1.1.S1)
- * This file sets up the Express server, connects the database, and defines the API routes.
- */
-require('dotenv').config(); // Load environment variables first (NF-2.1.3)
+// --- Main Application Entry Point ---
+// Sets up Express, middleware, routes, and starts the server.
 
+// Core dependencies
 const express = require('express');
-const { logRequest } = require('./src/db_client'); // For connection check
-const { vendSingleStep } = require('./src/services/protocol.service'); // P2.2 Logic
+require('dotenv').config(); // Load environment variables from .env file
 
+// Utility Imports
+const dbClient = require('./src/db_client'); // For initial DB check
+
+// Controller Imports
+const vendingController = require('./src/controllers/vending.controller');
+const inquiryController = require('./src/controllers/inquiry.controller'); 
+
+// --- Application Setup ---
 const app = express();
 const PORT = process.env.PORT || 3000;
-const API_BASE = '/api/v1/vending';
 
+// Middleware configuration MUST be first
+app.use(express.json()); // Essential for parsing JSON request bodies
+app.use(express.urlencoded({ extended: true })); // For form data if needed
 
-// --- Express Middleware Setup ---
-app.use(express.json()); // For parsing application/json
-app.use(express.urlencoded({ extended: true })); // For parsing application/x-www-form-urlencoded
+// Simple logging middleware
+app.use((req, res, next) => {
+    console.log(`[REQUEST] ${req.method} ${req.path} | Body Size: ${req.get('Content-Length') || 0} bytes`);
+    next();
+});
 
 
 // --- API Routes ---
+const API_PREFIX = '/api/v1';
 
-/**
- * Health Check Route
- */
+// Mount Vending Controller routes
+app.use(`${API_PREFIX}/vending`, vendingController.router);
+
+// Mount Inquiry Controller routes 
+app.use(`${API_PREFIX}/inquiry`, inquiryController);
+
+// P2.4: Register Inquiry Routes (e.g., /api/v1/inquiry/search)
+app.use(`${API_PREFIX}/inquiry`, inquiryController); // <-- NEWLY ADDED
+
+
+// --- Health Check Route ---
 app.get('/', (req, res) => {
-    res.send('Vending Gateway is Operational.');
+    res.status(200).send('Vending Gateway API is running.');
 });
 
-/**
- * P2.2: Single-Step Vending Endpoint
- * Route: /api/v1/vending/purchase-single
- */
-app.post(`${API_BASE}/purchase-single`, async (req, res) => {
-    const { meterNum, amount } = req.body;
-    
-    // Minimal input validation
-    if (!meterNum || !amount) {
-        return res.status(400).json({ status: "ERROR", message: "Missing meterNum or amount in request." });
-    }
-
-    try {
-        console.log(`[ROUTE] Processing single-step purchase for Meter: ${meterNum}, Amount: ${amount}`);
-        
-        // P2.2: Execute core vending logic
-        const transactionResult = await vendSingleStep(meterNum, amount);
-
-        // NF-2.2.1: Audit Logging (The logging is handled internally by protocol.service 
-        // after it receives a response, but we ensure it runs.)
-        
-        // Extract required data for the client response
-        const hubResponse = transactionResult.parsedData;
-        const state = parseInt(hubResponse.$.state, 10);
-        
-        // The Hub always returns an XML structure; we convert it to clean JSON for the client.
-        const responseJson = {
-            status: state === 0 ? "SUCCESS" : "FAILURE",
-            transId: transactionResult.transID,
-            meterNum: meterNum,
-            result: hubResponse.Property.reduce((acc, prop) => {
-                acc[prop.$.name] = prop.$.value;
-                return acc;
-            }, {})
-        };
-
-        // If the hub communication was successful (state=0), send the clean response
-        if (state === 0) {
-            return res.status(200).json(responseJson);
-        } else {
-            // Handle specific protocol errors
-            return res.status(500).json(responseJson);
-        }
-
-    } catch (error) {
-        console.error(`[CRITICAL ERROR] Failed to complete transaction: ${error.message}`);
-        return res.status(500).json({ status: "ERROR", message: "Server failed to process transaction.", detail: error.message });
-    }
+// --- Global Error Handler (Basic) ---
+app.use((err, req, res, next) => {
+    console.error('[GLOBAL ERROR]', err.stack);
+    res.status(500).send('Something broke!');
 });
 
 
-// --- Server Initialization ---
-app.listen(PORT, async () => {
-    console.log('Server running securely on port 3000');
-    console.log(`Access health check at: http://localhost:${PORT}/`);
-    console.log(`Vending API ready at: http://localhost:${PORT}${API_BASE}/`);
-
-    // P1.1: Database connection check
+// --- Server Startup ---
+const startServer = async () => {
     try {
-        await logRequest({ 
-            transId: '000000000000000000000000000000', 
-            userId: 'SYSTEM', 
-            meterNum: '00000000000', 
-            actionRequested: 'CONNECT_TEST', 
-            requestXml: '<Test/>' 
+        // P1.1: Verify DB connection on startup by getting and releasing a connection
+        console.log('[DB] Attempting database connection test...');
+        const connection = await dbClient.getConnection(); 
+        await connection.ping(); // Simple command to verify connection
+        connection.release();   // Always release the connection
+        console.log('[DB] Database connection confirmed.'); // Log success *after* release
+        
+        console.log("Vending API Ready | Server listening on port " + PORT);
+
+        // --- Start Listening ---
+        app.listen(PORT, () => {
+            console.log(`Access health check at: http://localhost:${PORT}/`);
+            console.log(`Vending API ready at: http://localhost:${PORT}${API_PREFIX}/vending/`);
+            console.log(`Inquiry API ready at: http://localhost:${PORT}${API_PREFIX}/inquiry/`); 
         });
-        console.log('[DB] Database connection confirmed.');
-    } catch (error) {
-        console.error('[DB ERROR] Database connection failed:', error.message);
-        // Do NOT crash the server if DB fails; allow it to run and log the error.
+
+    } catch (dbError) {
+        console.error('[FATAL] Could not connect to database on startup. Exiting.', dbError);
+        process.exit(1); // Exit if DB connection fails
     }
-});
+};
+
+startServer(); // Start the application
+
 

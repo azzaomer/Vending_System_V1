@@ -1,60 +1,84 @@
-// P1.3: MD5 Hashing Library (NF-2.1.2)
+// P1.3: MD5 Hashing Engine - Implements NF-2.1.2 security requirements
 const crypto = require('crypto');
 
-// Configuration for TP Credentials (NF-2.1.3)
-// NOTE: These MUST be read from environment variables or a secure vault,
-// NEVER hardcoded in production code.
-const USERNAME = process.env.TP_USERNAME || 'YOUR_TP_USERNAME';
-const SECRET_KEY = process.env.TP_SECRET_KEY || 'YOUR_SECRET_KEY';
-const SECRET_KEY_HASHED = crypto.createHash('md5').update(SECRET_KEY).digest('hex');
-
+// Load credentials securely from environment (NF-2.1.3)
+const TP_USERNAME = process.env.TP_USERNAME;
+const TP_USERPASS = process.env.TP_USERPASS;
+const TP_SECRET_KEY = process.env.TP_SECRET_KEY;
 
 /**
- * Generates the MD5 hash for a given string.
- * @param {string} data - The string to be hashed.
- * @returns {string} 32-character MD5 hash (hex format).
+ * Creates a standard MD5 hash of a given string.
+ * @param {string} text - The input string.
+ * @returns {string} The 32-character hexadecimal MD5 hash.
  */
-function hashMD5(data) {
-    return crypto.createHash('md5').update(data).digest('hex');
+function md5(text) {
+    if (typeof text !== 'string') {
+        console.warn(`[SECURITY] MD5 input was not a string, coercing. Input: ${text}`);
+        text = String(text);
+    }
+    return crypto.createHash('md5').update(text).digest('hex');
 }
 
 /**
- * Calculates the proprietary triple-hashed userPass for XML request.
- * Formula (based on protocol interpretation): MD5(USERNAME + SECRET_KEY + SECRET_KEY)
- * @returns {string} The calculated userPass hash.
+ * Calculates the proprietary triple-hashed 'userPass' for authentication.
+ * This is the function that was 'not defined'.
+ * @returns {string} The final userPass hash.
  */
 function calculateUserPassHash() {
-    // Protocol requires the username to be upper case in the hash calculation.
-    const input = USERNAME.toUpperCase() + SECRET_KEY + SECRET_KEY;
+    if (!TP_USERNAME || !TP_USERPASS || !TP_SECRET_KEY) {
+        console.error("[SECURITY ERROR] Missing TP_USERNAME, TP_USERPASS, or TP_SECRET_KEY in .env");
+        // Return a dummy hash to prevent crashes, though the request will fail
+        return 'd41d8cd98f00b204e9800998ecf8427e'; 
+    }
     
-    // NF-2.1.2: MD5 hashing
-    return hashMD5(input);
+    // Per protocol: "hash user password three times with username+userPass and key (username+userPass, encoded by md5...)"
+    // This is ambiguous. We will use the most robust interpretation:
+    // md5( md5(md5(TP_USERPASS) + TP_USERNAME) + TP_SECRET_KEY )
+
+    try {
+        const pass1 = md5(TP_USERPASS);
+        const pass2 = md5(pass1 + TP_USERNAME.toUpperCase()); // Protocol often requires username uppercase
+        const finalPass = md5(pass2 + TP_SECRET_KEY);
+        
+        return finalPass;
+    } catch (error) {
+        console.error("[SECURITY ERROR] Failed during userPass hash calculation:", error);
+        return 'd41d8cd98f00b204e9800998ecf8427e';
+    }
 }
 
 /**
- * Calculates the verifyCode (data integrity hash) for the XML request.
- * Formula: MD5(USERNAME + HASHED_SECRET_KEY + transID + meterNum + calcMode + amount)
- * @param {object} params - Core transaction parameters.
- * @returns {string} The calculated verifyCode hash.
+ * Calculates the 'verifyCode' (transaction signature).
+ * @param {object} params - Transaction parameters.
+ * @param {string} params.transID - The unique transaction ID.
+ * @param {string} params.meterNum - The meter number.
+ * @param {string} params.calcMode - 'M' for Money, 'P' for Power.
+ * @param {string | number} params.amount - The amount/quantity.
+ * @returns {string} The final verifyCode hash.
  */
-function calculateVerifyCode(params) {
-    const { transID, meterNum, calcMode, amount } = params;
+function calculateVerifyCode({ transID, meterNum, calcMode, amount }) {
+    if (!TP_USERNAME || !TP_SECRET_KEY || !transID || !meterNum) {
+         console.error("[SECURITY ERROR] Missing data for verifyCode calculation.");
+         return 'd41d8cd98f00b204e9800998ecf8427e';
+    }
+    
+    // Per protocol: (username + (Hash userPass) + transID + meterNum + calcMode + amount + key)
+    const hashedUserPass = calculateUserPassHash();
+    
+    const hashInput = 
+        `${TP_USERNAME.toUpperCase()}` + // Use uppercase username
+        `${hashedUserPass}` +
+        `${transID}` +
+        `${meterNum}` +
+        `${calcMode}` +
+        `${amount}` +
+        `${TP_SECRET_KEY}`;
 
-    // Build the string sequence based on the protocol requirements
-    const input = USERNAME.toUpperCase() +
-                  SECRET_KEY_HASHED + // NOTE: Uses the pre-hashed key here
-                  transID +
-                  meterNum +
-                  calcMode +
-                  String(amount); // Ensure amount is treated as a string for concatenation
-
-    // NF-2.1.2: MD5 hashing
-    return hashMD5(input);
+    return md5(hashInput);
 }
 
+// --- FIX: Ensure all required functions are exported ---
 module.exports = {
-    hashMD5,
     calculateUserPassHash,
     calculateVerifyCode
 };
-

@@ -1,24 +1,20 @@
 {
   "name": "tp-vending-gateway",
   "version": "1.0.0",
-  "description": "Secure Transaction Protocol Gateway for Vending Systems",
+  "description": "Third-Party Vending Gateway for SEDC Protocol",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "cross-env MOCK_HUB_RESPONSES=\"true\" node server.js"
   },
-  "keywords": [
-    "vending",
-    "protocol",
-    "nodejs",
-    "mysql"
-  ],
-  "author": "",
-  "license": "ISC",
   "dependencies": {
-    "axios": "0.27.2",
+    "axios": "^0.27.2",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
     "mysql2": "^3.9.7",
     "xml2js": "^0.6.2"
+  },
+  "devDependencies": {
+    "cross-env": "^7.0.3",
+    "nodemon": "^3.1.0"
   }
 }
