@@ -27,7 +27,7 @@ async function searchTransaction(req, res) {
 
     let dbColumn;
     if (queryKey === 'transID') {
-        dbColumn = 'transaction_id';
+        dbColumn = 'trans_id';
     } else if (queryKey === 'reqID') {
         dbColumn = 'vend_request_id';
     } else {
