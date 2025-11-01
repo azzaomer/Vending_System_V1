@@ -22,15 +22,14 @@ async function purchaseVending(req, res) {
     const { meterNum, itemId, amount } = req.body;
 
     // --- 1. Validation ---
-    if (!meterNum || !itemId || !amount) {
-        return res.status(400).json({ success: false, message: "Missing required fields: meterNum, itemId, and amount are required." });
+    if (!meterNum || !amount) {
+        return res.status(400).json({ success: false, message: "Missing required fields: meterNum, and amount are required." });
     }
 
     const vendRequestId = generateUniqueTransID();
     const initialTransactionData = {
         vend_request_id: vendRequestId,
         meter_num: meterNum,
-        item_id: itemId,
         item_price: parseFloat(amount),
         status: 'pending', // Mark as 'pending' before contacting the hub
         action_requested: 'VEND',
