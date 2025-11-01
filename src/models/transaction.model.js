@@ -1,5 +1,6 @@
 // P-1.1.3: Model for interacting with the 'transactions' table
 const db = require('../config/db'); // Knex instance
+const TABLE_NAME = 'transactions';
 
 /**
  * Finds a single transaction by a specific column.
@@ -9,23 +10,77 @@ const db = require('../config/db'); // Knex instance
  */
 async function findBy(column, value) {
     try {
-        // --- THIS IS THE FIX ---
-        // Removed the .join('vend_requests', ...)
         // This query now *only* selects from the 'transactions' table.
-        const transaction = await db('transactions')
+        console.log(`[MODEL] Finding in ${TABLE_NAME} where ${column} = ${value}`);
+        const transaction = await db(TABLE_NAME)
             .where({ [column]: value }) // Dynamic column search
             .select('*') // Select all columns from 'transactions'
             .first(); // Get the first matching row
 
-        return transaction;
+        return transaction || null;
     } catch (error) {
         console.error(`[MODEL] Error in findBy ${column}:`, error);
         throw error; // Re-throw the error to be caught by the service/controller
     }
 }
 
-// Add other functions (like 'create') as needed
+/**
+ * --- NEW FUNCTION ---
+ * Creates a new transaction record in the database.
+ * @param {object} transactionData - The data for the new transaction.
+ * @returns {Promise<object>} The newly created transaction object (with its ID).
+ */
+async function create(transactionData) {
+    try {
+        console.log(`[MODEL] Creating new transaction...`);
+        // Knex 'insert' returns an array of the inserted IDs.
+        const [insertedId] = await db(TABLE_NAME)
+            .insert(transactionData);
+        
+        console.log(`[MODEL] Transaction created with ID: ${insertedId}`);
+        // Return the full new transaction object by finding it by its new ID
+        return await findBy('transaction_id', insertedId);
+
+    } catch (error) {
+        console.error(`[MODEL] Error in create:`, error);
+        throw error;
+    }
+}
+
+/**
+ * --- NEW FUNCTION ---
+ * Updates a transaction record based on its vend_request_id.
+ * @param {string} vendRequestId - The unique vend_request_id to find.
+ * @param {object} updateData - An object containing the fields to update.
+ * @returns {Promise<object>} The updated transaction object.
+ */
+async function updateByVendId(vendRequestId, updateData) {
+    try {
+        console.log(`[MODEL] Updating transaction for vend_request_id: ${vendRequestId}`);
+        
+        const count = await db(TABLE_NAME)
+            .where({ vend_request_id: vendRequestId })
+            .update(updateData);
+
+        if (count === 0) {
+            throw new Error(`No transaction found with vend_request_id: ${vendRequestId} to update.`);
+        }
+        
+        console.log(`[MODEL] Transaction updated for vend_request_id: ${vendRequestId}`);
+        // Return the updated object
+        return await findBy('vend_request_id', vendRequestId);
+
+    } catch (error)
+    {
+        console.error(`[MODEL] Error in updateByVendId:`, error);
+        throw error;
+    }
+}
+
+
+// Export all the functions for the service layer
 module.exports = {
     findBy,
+    create, // <-- Now exporting the create function
+    updateByVendId // <-- Now exporting the update function
 };
-
