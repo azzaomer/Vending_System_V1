@@ -242,10 +242,21 @@ async function getLastTransactions(req, res) {
 }
 
 // --- Register Controller Routes ---
+/* Updated
 router.get('/search', searchTransaction);
 router.get('/balance', checkBalance); // Placeholder
 router.get('/last-transactions', getLastTransactions); // Placeholder using /last-transactions for clarity
 
 module.exports = router; // Export the router for server.js to use
+*/
+
+// --- EXPORT THE FUNCTIONS ---
+// This makes the functions available for the router to use.
+// We are exporting an object containing our functions.
+module.exports = {
+    searchTransaction,
+    getLastTransactions,
+    checkBalance // Added this to match the router
+};
 
 
