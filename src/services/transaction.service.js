@@ -1,5 +1,12 @@
 const Transaction = require('../models/transaction.model');
 
+// --- FIX: Map string statuses to integer values for the database ---
+const STATUS_MAP = {
+    'Pending': 0,
+    'Success': 1,
+    'Failed': 2
+};
+
 /**
  * F-1.1.4: Service layer to find a transaction by a specific column.
  * This function calls the model to interact with the database.
@@ -36,7 +43,7 @@ async function createVendTransaction(vendRequestId, meterNum, itemId, amount) {
             trans_id: vendRequestId,
             meter_num: meterNum,
             amount_requested: amount,
-            hub_state: 'Pending', // Initial state
+            hub_state: STATUS_MAP['Pending'],
             action_requested: 'VEND',
             request_timestamp: new Date()
         };
@@ -64,7 +71,7 @@ async function updateTransactionWithHubResponse(vendRequestId, status, errorCode
         console.log(`[SERVICE] Updating transaction for ID: ${vendRequestId} with status: ${status}`);
         
         const updateData = {
-            hub_state: status,
+            hub_state: STATUS_MAP[status] || STATUS_MAP['Failed'],
             hub_error_code: errorCode,
             response_xml: details, // Storing raw response
             token_received: token,
