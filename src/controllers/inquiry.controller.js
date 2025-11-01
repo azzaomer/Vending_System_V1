@@ -128,6 +128,8 @@ async function checkBalance(req, res) {
     }
 }
 
+
+/**
 async function getLastTransactions(req, res) {
     // F-1.1.5: Logic for GETTRANS action will go here
     // This will likely involve calling protocolService.sendRequest('GETTRANS', ...)
@@ -137,8 +139,85 @@ async function getLastTransactions(req, res) {
      }
     console.log(`[ROUTE] Processing GETTRANS request for Meter: ${meterNum}`);
     return res.status(501).json({ success: false, message: 'GETTRANS endpoint not implemented yet.' });
-}
+    
+    return res.status(200).json({
+        success: true,
+        message: `Transaction found for ${queryKey}: ${queryValue}.`,
+        transaction: {
+            vend_request_id: transaction.vend_request_id,
+            transaction_id: transaction.transaction_id,
+            item_id: transaction.item_id,
+            item_price: transaction.item_price,
+            status: transaction.status,
+            created_at: transaction.created_at,
+            updated_at: transaction.updated_at,
+            hubResponseDetails: transaction.hub_response_details,
+        }
+    });
 
+}
+*/
+
+
+/**
+ * F-1.1.4: Search for a single transaction by its ID (transID) or vend request ID (reqID).
+ * This controller handles the API request, validates the query parameters,
+ * calls the service layer to find the transaction, and returns it.
+ */
+async function getLastTransactions(req, res) {
+    // 1. Get query parameters
+    const { id, type } = req.query;
+
+    // 2. Validate parameters
+    if (!id || !type) {
+        return res.status(400).json({ success: false, message: "Query parameters 'id' and 'type' are required." });
+    }
+
+    let queryColumn;
+    let queryKey;
+    if (type === 'transID') {
+        queryColumn = 'transaction_id';
+        queryKey = 'transID';
+    } else if (type === 'reqID') {
+        queryColumn = 'vend_request_id';
+        queryKey = 'reqID';
+    } else {
+        return res.status(400).json({ success: false, message: "Invalid 'type'. Must be 'transID' or 'reqID'." });
+    }
+    const queryValue = id;
+    console.log(`[ROUTE] Processing search for ${queryKey}: ${queryValue}`);
+
+    try {
+        // 3. Call service layer
+        const transaction = await transactionService.findTransactionBy(queryColumn, queryValue);
+
+        // 4. Handle response
+        if (!transaction) {
+            return res.status(404).json({ success: false, message: `No transaction found for ${queryKey}: ${queryValue}.` });
+        }
+
+        // 5. Return successful response
+        // We explicitly DO NOT return the `id` (primary key) or `raw_protocol_response`.
+        return res.status(200).json({
+            success: true,
+            message: `Transaction found for ${queryKey}: ${queryValue}.`,
+            transaction: {
+                vend_request_id: transaction.vend_request_id,
+                transaction_id: transaction.transaction_id,
+                item_id: transaction.item_id,
+                item_price: transaction.item_price,
+                status: transaction.status,
+                created_at: transaction.created_at,
+                updated_at: transaction.updated_at,
+                hubResponseDetails: transaction.hub_response_details,
+            }
+        });
+
+    } catch (error) {
+        console.error('Error in searchTransaction controller:', error);
+        return res.status(500).json({ success: false, message: 'Internal server error during transaction search.' });
+    }
+}
 
 // --- Register Controller Routes ---
 router.get('/search', searchTransaction);
