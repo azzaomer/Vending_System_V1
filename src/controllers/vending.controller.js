@@ -19,14 +19,18 @@ async function checkItems(req, res) {
  * This is the main logic you asked for.
  */
 async function purchaseVending(req, res) {
-    const { meterNum, itemId, amount } = req.body;
+    const { meterNum, amount } = req.body;
 
     // --- 1. Validation ---
     if (!meterNum || !amount) {
-        return res.status(400).json({ success: false, message: "Missing required fields: meterNum, and amount are required." });
+        return res.status(400).json({ 
+            success: false, 
+            message: "Missing required fields: meterNum, and amount are required." 
+        });
     }
 
     const vendRequestId = generateUniqueTransID();
+    console.log(`[CONTROLLER] New purchase request received. Generated ID: ${vendRequestId}`);
     const initialTransactionData = {
         vend_request_id: vendRequestId,
         meter_num: meterNum,
