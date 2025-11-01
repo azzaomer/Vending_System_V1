@@ -129,6 +129,7 @@ async function checkBalance(req, res) {
 }
 
 
+/*----------------------------------------------------------------------------------------------*/
 /**
 async function getLastTransactions(req, res) {
     // F-1.1.5: Logic for GETTRANS action will go here
@@ -164,7 +165,8 @@ async function getLastTransactions(req, res) {
  * This controller handles the API request, validates the query parameters,
  * calls the service layer to find the transaction, and returns it.
  */
-async function getLastTransactions(req, res) {
+/*
+ async function getLastTransactions(req, res) {
     // 1. Get query parameters
     const { id, type } = req.query;
 
@@ -229,5 +231,31 @@ router.get('/balance', checkBalance); // Placeholder
 router.get('/last-transactions', getLastTransactions); // Placeholder using /last-transactions for clarity
 
 module.exports = router; // Export the router for server.js to use
+*/
+
+/*----------------------------------------------------------------------------------------------*/
+
+/**
+ * F-1.1.5: Get the last N transactions for a specific meter from the protocol hub.
+ * This controller will call the protocolService to send a 'GETTRANS' request.
+ */
+async function getLastTransactions(req, res) {
+    // F-1.1.5: Logic for GETTRANS action will go here
+    // This will likely involve calling protocolService.sendRequest('GETTRANS', ...)
+    const { meterNum } = req.query;
+    if (!meterNum) {
+        return res.status(400).json({ success: false, message: "Query parameter 'meterNum' is required." });
+    }
+
+    console.log(`[ROUTE] Processing GETTRANS request for Meter: ${meterNum}`);
+    
+    // Placeholder response - this is the intended response for now
+    return res.status(501).json({ success: false, message: 'GETTRANS endpoint not implemented yet.' });
+}
+
+module.exports = {
+    searchTransaction,
+    getLastTransactions,
+};
 
 
