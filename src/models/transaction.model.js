@@ -56,10 +56,10 @@ async function create(transactionData) {
  */
 async function updateByVendId(vendRequestId, updateData) {
     try {
-        console.log(`[MODEL] Updating transaction for vend_request_id: ${vendRequestId}`);
+        console.log(`[MODEL] Updating transaction for trans_id: ${vendRequestId}`);
         
         const count = await db(TABLE_NAME)
-            .where({ vend_request_id: vendRequestId })
+            .where({ trans_id: vendRequestId })
             .update(updateData);
 
         if (count === 0) {
@@ -68,7 +68,7 @@ async function updateByVendId(vendRequestId, updateData) {
         
         console.log(`[MODEL] Transaction updated for vend_request_id: ${vendRequestId}`);
         // Return the updated object
-        return await findBy('vend_request_id', vendRequestId);
+        return await findBy('trans_id', vendRequestId);
 
     } catch (error)
     {
