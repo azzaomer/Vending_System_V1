@@ -42,7 +42,7 @@ async function purchaseVending(req, res) {
     try {
         // --- 2. Create Initial Transaction Record ---
         // Log the attempt in our database *before* making the external call.
-        transaction = await transactionService.createTransaction(initialTransactionData);
+        transaction = await transactionService.createVendTransaction(initialTransactionData);
         console.log(`[CONTROLLER] Created pending transaction: ${vendRequestId}`);
 
         // --- 3. Call External Hub ---
