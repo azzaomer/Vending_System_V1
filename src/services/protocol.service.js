@@ -11,6 +11,9 @@ const crypto = require('crypto');
 const MOCK_HUB_RESPONSES = process.env.MOCK_HUB_RESPONSES === 'true';
 
 const REAL_HUB_API_URL = process.env.HUB_API_URL;
+const HUB_USERNAME = process.env.HUB_USERNAME;
+const HUB_PASSWORD = process.env.HUB_PASSWORD;
+const HUB_KEY = process.env.HUB_KEY;
 
 // --- XML Builder & Parser ---
 const xmlBuilder = new xml2js.Builder({ rootName: 'xml', headless: true });
@@ -90,6 +93,38 @@ function buildVendRequestXml(params) {
 }
 
 /**
+ * --- NEW FUNCTION ---
+ * Creates the XML body for a BALANCE request.
+ * @returns {string} The complete XML request string.
+ */
+function buildBalanceRequestXml() {
+    const xmlObject = {
+        $: {
+            userName: HUB_USERNAME,
+            userPass: getPassHash()
+        }
+    };
+    return xmlBuilder.buildObject(xmlObject);
+}
+
+/**
+ * --- NEW FUNCTION ---
+ * Creates the XML body for a GETTRANS request.
+ * @param {object} params - { meterNum }
+ * @returns {string} The complete XML request string.
+ */
+function buildGetTransRequestXml(params) {
+    const xmlObject = {
+        $: {
+            userName: HUB_USERNAME,
+            userPass: getPassHash(),
+            meterNum: params.meterNum
+        }
+    };
+    return xmlBuilder.buildObject(xmlObject);
+}
+
+/**
  * Generates a mock hub response for testing.
  * @param {string} transID - The transaction ID.
  * @returns {object} A parsed hub response object.
@@ -123,6 +158,33 @@ function mockFailureResponse(transID) {
     };
 }
 
+/**
+ * --- NEW MOCK ---
+ * Generates a mock hub response for a BALANCE request.
+ */
+function mockBalanceResponse() {
+    return {
+        state: '0',
+        username: HUB_USERNAME,
+        balance: '12345.67',
+        rawResponse: '<result state="0" balance="12345.67" ... />'
+    };
+}
+
+/**
+ * --- NEW MOCK ---
+ * Generates a mock hub response for a GETTRANS request.
+ */
+function mockGetTransResponse(meterNum) {
+    return {
+        state: '0',
+        count: '3',
+        ti0: 'MOCK_ID_1', tt0: '2025-11-01 10:30:00',
+        ti1: 'MOCK_ID_2', tt1: '2025-11-02 11:35:00',
+        ti2: 'MOCK_ID_3', tt2: '2025-11-03 12:40:00',
+        rawResponse: '<result state="0" count="3" ... />'
+    };
+}
 
 /**
  * Sends a request to the external Power Hub.
