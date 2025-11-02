@@ -196,13 +196,21 @@ function mockGetTransResponse(meterNum) {
 async function sendRequest(action, params, useMock) {
     console.log(`[PROTOCOL] Sending request. Action: ${action}, Mock: ${useMock}`);
 
-    // --- FIX: The MOCK_HUB_RESPONSES env var is now used
-    // We check the param from the controller OR the global env var
-    if ((useMock || MOCK_HUB_RESPONSES) && action === 'VEND') {
-        console.log("[PROTOCOL] MOCKING hub 'VEND' request.");
-        // Uncomment one of these to test success or failure
-        return mockVendResponse(params.transID);
-        // return mockFailureResponse(params.transID);
+    // --- Mocking Logic ---
+    if (useMock || MOCK_HUB_RESPONSES) {
+        console.log(`[PROTOCOL] MOCKING hub request for action: ${action}`);
+        if (action === 'VEND') {
+            return mockVendResponse(params.transID);
+            // return mockFailureResponse(params.transID);
+        }
+        // --- FIX: Add mock logic for BALANCE ---
+        if (action === 'BALANCE') {
+            return mockBalanceResponse();
+        }
+        // --- FIX: Add mock logic for GETTRANS ---
+        if (action === 'GETTRANS') {
+            return mockGetTransResponse(params.meterNum);
+        }
     }
 
     // --- Real Hub Logic ---
@@ -212,8 +220,19 @@ async function sendRequest(action, params, useMock) {
     if (action === 'VEND') {
         requestXml = buildVendRequestXml(params);
         hubUrl = `${REAL_HUB_API_URL}?ACTION=PURCHASE`;
-    } else {
-        // Placeholder for other actions like CHECK or GETTRANS
+    } 
+    // --- FIX: Add real logic for BALANCE ---
+    else if (action === 'BALANCE') {
+        requestXml = buildBalanceRequestXml();
+        hubUrl = `${REAL_HUB_API_URL}?ACTION=BALANCE`; // As per spec
+    } 
+    // --- FIX: Add real logic for GETTRANS ---
+    else if (action === 'GETTRANS') {
+        requestXml = buildGetTransRequestXml(params);
+        hubUrl = `${REAL_HUB_API_URL}?ACTION=GETTRANS`; // As per spec
+    } 
+    // --- This is what is currently running ---
+    else {
         console.error(`[PROTOCOL] Action '${action}' not implemented.`);
         return { state: '98', message: `Action '${action}' not implemented.` };
     }
@@ -228,7 +247,6 @@ async function sendRequest(action, params, useMock) {
 
         console.log(`[PROTOCOL] Raw XML Response: ${response.data}`);
         
-        // Parse the XML response and add the raw XML to it for logging
         const parsedResponse = await parseXmlResponse(response.data);
         parsedResponse.rawResponse = response.data; // Store for logging
         
