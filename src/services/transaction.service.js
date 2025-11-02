@@ -46,7 +46,8 @@ async function createVendTransaction(vendRequestId, meterNum, itemId, amount) {
             hub_state: STATUS_MAP['Pending'],
             action_requested: 'VEND',
             request_timestamp: new Date(),
-            user_id: 1 
+            user_id: 1,
+            requesr_xml: ''
         };
 
         // Calls the model's 'create' function
