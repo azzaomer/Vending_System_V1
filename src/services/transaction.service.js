@@ -47,7 +47,7 @@ async function createVendTransaction(vendRequestId, meterNum, itemId, amount) {
             action_requested: 'VEND',
             request_timestamp: new Date(),
             user_id: 1,
-            requesr_xml: ''
+            request_xml: ''
         };
 
         // Calls the model's 'create' function
