@@ -81,7 +81,7 @@ async function checkBalance(req, res) {
 
     try {
         // 1. Build the simple XML request for BALANCE (using the new function from protocol.service)
-        const xmlRequest = protocolService.buildBalanceRequest();
+        const xmlRequest = protocolService.sendRequest();
 
         // 2. Send request to the Hub (will use mock if SHOULD_MOCK_HUB is true)
         const hubResponse = await protocolService.sendRequest('BALANCE', xmlRequest);
