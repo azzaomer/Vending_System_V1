@@ -77,42 +77,35 @@ async function searchTransaction(req, res) {
  * This function communicates with the Hub to check the TP account balance.
  */
 async function checkBalance(req, res) {
-    console.log('[ROUTE] Processing balance request...');
-
+    console.log(`[CONTROLLER] Processing checkBalance request...`);
     try {
-        // 1. Build the simple XML request for BALANCE (using the new function from protocol.service)
-        const xmlRequest = protocolService.sendRequest();
+        // Mock flag is passed from controller to service
+        const SHOULD_MOCK_HUB = req.body.useMock || false;
 
-        // 2. Send request to the Hub (will use mock if SHOULD_MOCK_HUB is true)
-        const hubResponse = await protocolService.sendRequest('BALANCE', xmlRequest);
+        // Call protocol service for BALANCE action. No params needed.
+        const hubResponse = await protocolService.sendRequest('BALANCE', {}, SHOULD_MOCK_HUB);
 
-        // 3. Check Hub response for state
-        const hubState = parseInt(hubResponse.xml.$.state);
-        if (hubState !== 0) {
-            console.warn(`[ROUTE] Hub returned error for BALANCE check: State ${hubState}`);
-            return res.status(502).json({
+        // Check the state from the hub response
+        if (hubResponse && hubResponse.state === '0') {
+            // Success
+            return res.status(200).json({
+                success: true,
+                message: 'Balance check successful.',
+                balance: hubResponse.balance,
+                username: hubResponse.username
+            });
+        } else {
+            // Hub returned an error
+            return res.status(400).json({
                 success: false,
-                message: `Hub returned an error state: ${hubState}`,
-                errorCode: hubResponse.xml.$.code || 'UNKNOWN'
+                message: hubResponse.message || 'Balance check failed.',
+                hubState: hubResponse.state
             });
         }
 
-        // 4. Return successful balance
-        const balance = parseFloat(hubResponse.xml.$.balance);
-        console.log(`[ROUTE] Balance check successful. Balance: ${balance}`);
-        res.status(200).json({
-            success: true,
-            username: hubResponse.xml.$.username,
-            balance: balance
-        });
     } catch (error) {
-        // 5. Handle Critical Errors
-        console.error(`[CONTROLLER ERROR] Balance check failed:`, error.message);
-        res.status(500).json({ 
-            success: false, 
-            message: 'Server failed to process balance request.',
-            detail: error.message 
-        });
+        console.error(`[CONTROLLER] Critical error in checkBalance:`, error);
+        return res.status(500).json({ success: false, message: error.message || 'Internal server error.' });
     }
 }
 
