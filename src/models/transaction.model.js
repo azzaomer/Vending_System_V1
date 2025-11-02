@@ -39,7 +39,7 @@ async function create(transactionData) {
         
         console.log(`[MODEL] Transaction created with ID: ${insertedId}`);
         // Return the full new transaction object by finding it by its new ID
-        return await findBy('transaction_id', insertedId);
+        return await findBy('trans_id', insertedId);
 
     } catch (error) {
         console.error(`[MODEL] Error in create:`, error);
