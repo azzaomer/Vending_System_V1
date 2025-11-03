@@ -221,19 +221,51 @@ module.exports = router; // Export the router for server.js to use
  * This controller will call the protocolService to send a 'GETTRANS' request.
  */
 async function getLastTransactions(req, res) {
-    // F-1.1.5: Logic for GETTRANS action will go here
-    // This will likely involve calling protocolService.sendRequest('GETTRANS', ...)
-    const { meterNum } = req.query;
-    if (!meterNum) {
-        return res.status(400).json({ success: false, message: "Query parameter 'meterNum' is required." });
+    console.log('[CONTROLLER] Processing getLastTransactions request...');
+    try {
+        const { meterNum } = req.query;
+        if (!meterNum) {
+            return res.status(400).json({ success: false, message: "Query parameter 'meterNum' is required." });
+        }
+
+        console.log(`[CONTROLLER] Getting last transactions for Meter: ${meterNum}`);
+        
+        // --- THIS IS THE NEW LOGIC ---
+        const hubResponse = await protocolService.sendRequest('GETTRANS', { meterNum }, SHOULD_MOCK_HUB);
+
+        if (hubResponse && hubResponse.state === '0') {
+            // Success - parse the tiX, ttX data
+            const transactions = [];
+            const count = parseInt(hubResponse.count, 10) || 0;
+
+            for (let i = 0; i < count; i++) {
+                transactions.push({
+                    transID: hubResponse[`ti${i}`],
+                    transTime: hubResponse[`tt${i}`]
+                });
+            }
+
+            return res.status(200).json({
+                success: true,
+                message: `Found ${count} transactions for meter ${meterNum}.`,
+                transactionCount: count,
+                transactions: transactions
+            });
+        } else {
+            // Hub returned an error state
+            return res.status(502).json({
+                success: false,
+                message: hubResponse.message || 'Hub returned an error.',
+                hubState: hubResponse.state,
+                meterNum: meterNum
+            });
+        }
+
+    } catch (error) {
+        console.error(`[CONTROLLER ERROR] getLastTransactions failed:`, error.message);
+        return res.status(500).json({ success: false, message: 'Internal server error.' });
     }
-
-    console.log(`[ROUTE] Processing GETTRANS request for Meter: ${meterNum}`);
-    
-    // Placeholder response - this is the intended response for now
-    return res.status(501).json({ success: false, message: 'GETTRANS endpoint not implemented yet.' });
 }
-
 // --- Register Controller Routes ---
 /* Updated
 router.get('/search', searchTransaction);
