@@ -172,17 +172,34 @@ function mockBalanceResponse() {
 }
 
 /**
- * --- NEW MOCK ---
- * Generates a mock hub response for a GETTRANS request.
+ * Generates a mock GETTRANS response.
+ * @returns {object} A parsed hub response object.
  */
-function mockGetTransResponse(meterNum) {
+function mockGetTransResponse() {
     return {
         state: '0',
         count: '3',
-        ti0: 'MOCK_ID_1', tt0: '2025-11-01 10:30:00',
-        ti1: 'MOCK_ID_2', tt1: '2025-11-02 11:35:00',
-        ti2: 'MOCK_ID_3', tt2: '2025-11-03 12:40:00',
+        ti0: 'MOCK_ID_1',
+        tt0: '2025-11-01 10:30:00',
+        ti1: 'MOCK_ID_2',
+        tt1: '2025-11-02 11:35:00',
+        ti2: 'MOCK_ID_3',
+        tt2: '2025-11-03 12:40:00',
         rawResponse: '<result state="0" count="3" ... />'
+    };
+}
+
+/**
+ * Generates a mock hub failure response for testing.
+ * @param {string} transID - The transaction ID.
+ * @returns {object} A parsed hub response object.
+ */
+function mockFailureResponse(transID) {
+    return {
+        state: '10', // Mock error state
+        message: 'Mock Failure: Insufficient funds.',
+        transID: transID,
+        rawResponse: '<xml state="10" ...>...mock failure...</xml>' // Store raw response
     };
 }
 
@@ -209,7 +226,7 @@ async function sendRequest(action, params, useMock) {
         }
         // --- FIX: Add mock logic for GETTRANS ---
         if (action === 'GETTRANS') {
-            return mockGetTransResponse(params.meterNum);
+            return mockGetTransResponse();
         }
     }
 
