@@ -137,6 +137,8 @@ function mockVendResponse(transID) {
         transTime: new Date().toISOString(),
         customerName: 'MOCK CUSTOMER',
         token: '7126 0409 9900 8678 6553', // Mock Token
+        // --- THIS IS THE NEW LINE ---
+        extraToken: 'MOCK_KEY_CHANGE_TOKEN_12345',
         invoice: '0000000789', // Mock Invoice
         verifyCode: 'e48fb9d350b0d93a5a0a9f10387bc58b',
         transID: transID,
