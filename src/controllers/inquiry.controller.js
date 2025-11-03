@@ -10,6 +10,9 @@ const transactionRepo = require('../repositories/transaction.repository');
 const protocolService = require('../services/protocol.service'); 
 const transactionService = require('../services/transaction.service');
 
+// Read the mock hub flag from environment, default to false
+const SHOULD_MOCK_HUB = process.env.MOCK_HUB_RESPONSES === 'true';
+
 /**
  * Handles the GET /search request to find a transaction.
  * Expects query parameters: 'id' (the transID or meterNum) and 'type' ('transID' or 'meterNum').
