@@ -17,7 +17,7 @@ router.get('/search', inquiryController.searchTransaction);
  * @description Get the last 5 transactions for a specific meter number.
  * @query {string} meterNum - The meter number to check.
  */
-router.get('/last', inquiryController.getLastTransactions);
+router.get('/last-transactions', inquiryController.getLastTransactions);
 
 
 /**
