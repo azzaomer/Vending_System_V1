@@ -71,13 +71,23 @@ async function createVendTransaction(vendRequestId, meterNum, itemId, amount) {
 async function updateTransactionWithHubResponse(vendRequestId, status, errorCode, details, token) {
     try {
         console.log(`[SERVICE] Updating transaction for ID: ${vendRequestId} with status: ${status}`);
-        
+
+        // Check for the conditional extraToken (Key Change Token)
+        let extraToken = null;
+        if (hubResponse.extraToken) {
+            extraToken = hubResponse.extraToken;
+            console.log(`[SERVICE] Found extraToken: ${extraToken}`);
+        }
+
         const updateData = {
             hub_state: STATUS_MAP[status] || STATUS_MAP['Failed'],
             hub_error_code: errorCode,
             response_xml: details, // Storing raw response
             token_received: token,
-            response_timestamp: new Date()
+            response_timestamp: new Date(),
+            troken_received: hubResponse.token,
+            invoice_num: hubResponse.invoice,
+            exta_token: extraToken 
         };
 
         // Calls the model's 'updateByVendId' function
