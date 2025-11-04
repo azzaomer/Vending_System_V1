@@ -31,6 +31,8 @@ async function purchaseVending(req, res) {
 
     const vendRequestId = generateUniqueTransID();
     console.log(`[CONTROLLER] New purchase request received. Generated ID: ${vendRequestId}`);
+
+    let pendingTransaction;
     try {
         // --- 2. Create Initial Transaction Record ---
         console.log(`[CONTROLLER] Creating initial transaction record...`);
@@ -40,16 +42,20 @@ async function purchaseVending(req, res) {
             amount
         );
 
+        if (!pendingTransaction) {
+            throw new Error('Failed to create initial transaction record in database.');
+        }
+
     // --- 3. Call Protocol Service (Hub Simulation) ---
         console.log(`[CONTROLLER] Calling protocol service for ID: ${vendRequestId}`);
-        // This 'VEND' action will now trigger the REAL implementation
-        const hubResponse = await protocolService.sendRequest('VEND', {
-            vend_request_id: vendRequestId,
-            meter_num: meterNum,
-            // 'itemId' is no longer part of this payload
-            amount: amount,
-            timestamp: new Date().toISOString()
-        });
+        const hubRequestParams = {
+            transID: vendRequestId,
+            meterNum: meterNum,
+            amount: amount
+        };
+
+        const hubResponse = await protocolService.sendRequest('VEND', hubRequestParams, SHOULD_MOCK_HUB);
+
 
         // --- 4. Update Transaction with Hub Response ---
         console.log(`[CONTROLLER] Hub response received. Updating transaction...`);
@@ -70,6 +76,15 @@ async function purchaseVending(req, res) {
             transaction: updatedTransaction // Return the final, updated transaction
         });
 
+        } else {
+            // Hub reported an error (e.g., meter not found)
+            return res.status(409).json({
+                success: false,
+                message: hubResponse.message || 'Hub reported an error.',
+                transaction: updatedTransaction
+            });
+        }
+
     } catch (error) {
         // This is a critical failure (e.g., database connection)
         console.error(`[CONTROLLER] Critical error in handlePurchase:`, error);
@@ -84,13 +99,30 @@ async function purchaseVending(req, res) {
                 null
             );
         } catch (updateError) {
-            console.error(`[CONTROLLER] Failed to even update transaction to failed state:`, updateError);
+            // --- THIS IS THE SECOND FIX ---
+        // If a critical error happens (e.g., protocol service crashes),
+        // we must try to mark our transaction as "Failed".
+        // To do this, we create a "failure" hubResponse object to pass
+        // to the update function, which is what it expects.
+        
+        const failureResponse = {
+            state: '99', // Our internal code for a system crash
+            rawResponse: error.message || '<xml>System Error</xml>',
+            token: null,
+            invoice: null,
+            extraToken: null
+        };
+
+        try {
+            console.log(`[CONTROLLER] Attempting to mark transaction ${vendRequestId} as Failed...`);
+            // Pass the generated failureResponse object
+            await transactionService.updateTransactionWithHubResponse(vendRequestId, failureResponse);
+        } catch (updateError) {
+            console.error(`[CONTROLLER] Failed to even update transaction to failed state:`, updateError.message);
         }
 
-        return res.status(500).json({
-            success: false,
-            message: 'Internal server error during transaction.'
-        });
+        // Return a generic 500 error to the client
+        return res.status(500).json({ success: false, message: 'Internal server error.' });
     }
 }
 
