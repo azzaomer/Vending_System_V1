@@ -61,30 +61,28 @@ async function purchaseVending(req, res) {
         // 4. Update our transaction with the hub's response
         console.log(`[CONTROLLER] Hub response received. Updating transaction...`);
         
-        // --- CALL TO updateTransactionWithHubResponse REMOVED ---
-        const updatedTransaction = pendingTransaction; // Will only contain the "Pending" data
+        // Pass the entire hubResponse object to the service
+        const updatedTransaction = await transactionService.updateTransactionWithHubResponse(vendRequestId, hubResponse);
 
         // 5. Send Final Response
         if (hubResponse.state === '0') {
             return res.status(200).json({
                 success: true,
                 message: 'Vending purchase successful.',
-                transaction: updatedTransaction // Will not reflect hub response
+                transaction: updatedTransaction // Now includes final token/status
             });
         } else {
             // Hub reported an error (e.g., meter not found)
             return res.status(409).json({
                 success: false,
                 message: hubResponse.message || 'Hub reported an error.',
-                transaction: updatedTransaction // Will not reflect hub response
+                transaction: updatedTransaction // Includes final error status
             });
         }
 
     } catch (error) {
         console.error(`[CONTROLLER] Critical error in handlePurchase:`, error.message);
 
-        // --- FIX: Correct call to update transaction on failure ---
-        
         // This is the object the service expects
         const failureResponse = {
             state: '99', // Our internal code for a system crash
@@ -97,8 +95,9 @@ async function purchaseVending(req, res) {
         try {
             console.log(`[CONTROLLER] Attempting to mark transaction ${vendRequestId} as Failed...`);
             
-            // --- CALL TO updateTransactionWithHubResponse REMOVED ---
-            // await transactionService.updateTransactionWithHubResponse(vendRequestId, failureResponse);
+            // --- LOGIC RE-ENABLED ---
+            // Pass the generated failureResponse object
+            await transactionService.updateTransactionWithHubResponse(vendRequestId, failureResponse);
         
         } catch (updateError) {
             console.error(`[CONTROLLER] Failed to even update transaction to failed state:`, updateError.message);
