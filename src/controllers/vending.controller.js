@@ -3,6 +3,10 @@ const protocolService = require('../services/protocol.service');
 const transactionService = require('../services/transaction.service');
 const { generateUniqueTransID } = require('../id_generator');
 
+
+// This variable is required to pass to the protocol service
+const SHOULD_MOCK_HUB = process.env.MOCK_HUB_RESPONSES === 'true';
+
 /**
  * F-1.1.1: Check available items.
  * Placeholder for the CHECKITEMS action.
