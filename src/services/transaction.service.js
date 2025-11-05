@@ -68,7 +68,7 @@ async function createVendTransaction(vendRequestId, hubResponse) {
  * @param {string|null} token - The vending token, if any.
  * @returns {Promise<object>} The updated transaction object.
  */
-async function updateTransactionWithHubResponse(vendRequestId, status, errorCode, details, token) {
+async function updateTransactionWithHubResponse(vendRequestId, hubResponse) {
     try {
         console.log(`[SERVICE] Updating transaction for ID: ${vendRequestId} with status: ${status}`);
 
