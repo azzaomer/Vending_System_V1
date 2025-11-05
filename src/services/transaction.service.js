@@ -34,7 +34,7 @@ async function findTransactionBy(column, value) {
  * @param {number} amount - The purchase amount.
  * @returns {Promise<object>} The newly created transaction object.
  */
-async function createVendTransaction(vendRequestId, meterNum, itemId, amount) {
+async function createVendTransaction(vendRequestId, hubResponse) {
     try {
         console.log(`[SERVICE] Creating vend transaction for ID: ${vendRequestId}`);
         
