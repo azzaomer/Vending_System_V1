@@ -26,7 +26,7 @@ async function purchaseVending(req, res) {
         return res.status(400).json({ success: false, message: 'Missing required fields: meterNum and amount.' });
     }
 
-    const vendRequestId = generateVendRequestId();
+    const vendRequestId = generateUniqueTransID.generateVendRequestId();
     console.log(`[CONTROLLER] New purchase request received. Generated ID: ${vendRequestId}`);
 
     let pendingTransaction;
