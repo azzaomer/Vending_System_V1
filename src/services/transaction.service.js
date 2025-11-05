@@ -110,5 +110,5 @@ async function updateTransactionWithHubResponse(vendRequestId, hubResponse) {
 module.exports = {
     findTransactionBy,
     createVendTransaction,
-  pdateTransactionWithHubResponse
+    updateTransactionWithHubResponse
 };
