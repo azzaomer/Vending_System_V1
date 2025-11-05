@@ -82,6 +82,9 @@ async function purchaseVending(req, res) {
         // If a critical error happens (e.g., protocol service crashes),
         // we must try to mark our transaction as "Failed".
         
+        // --- FIX: Correct call to update transaction on failure ---
+        
+        // This is the object the service expects
         const failureResponse = {
             state: '99', // Our internal code for a system crash
             rawResponse: error.message || '<xml>System Error</xml>',
@@ -92,7 +95,7 @@ async function purchaseVending(req, res) {
 
         try {
             console.log(`[CONTROLLER] Attempting to mark transaction ${vendRequestId} as Failed...`);
-            // Pass the generated failureResponse object
+            // We MUST pass the failureResponse object as the second argument
             await transactionService.updateTransactionWithHubResponse(vendRequestId, failureResponse);
         } catch (updateError) {
             console.error(`[CONTROLLER] Failed to even update transaction to failed state:`, updateError.message);
