@@ -68,6 +68,8 @@ async function createVendTransaction(vendRequestId, hubResponse) {
  * @param {string|null} token - The vending token, if any.
  * @returns {Promise<object>} The updated transaction object.
  */
+
+/*
 async function updateTransactionWithHubResponse(vendRequestId, hubResponse) {
     try {
         console.log(`[SERVICE] Updating transaction for ID: ${vendRequestId} with status: ${status}`);
@@ -97,12 +99,11 @@ async function updateTransactionWithHubResponse(vendRequestId, hubResponse) {
         console.error('[SERVICE] Error in updateTransactionWithHubResponse:', error);
         throw error;
     }
-}
+}*/
 
 
 // Export all the functions for the controllers to use
 module.exports = {
     findTransactionBy,
-    createVendTransaction,
-    updateTransactionWithHubResponse
+    createVendTransaction
 };
