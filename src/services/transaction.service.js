@@ -2,10 +2,13 @@ const Transaction = require('../models/transaction.model');
 
 // --- FIX: Map string statuses to integer values for the database ---
 const STATUS_MAP = {
-    'Pending': 0,
-    'Success': 1,
-    'Failed': 2
+    '0': 1, // Hub Success
+    'Pending': 0,
+    'Success': 1,
+    'Failed': 2,
+    'default': 2 // Default to Failed
 };
+
 
 /**
  * F-1.1.4: Service layer to find a transaction by a specific column.
@@ -69,41 +72,43 @@ async function createVendTransaction(vendRequestId, meterNum, amount) {
  * @returns {Promise<object>} The updated transaction object.
  */
 
-/*
 async function updateTransactionWithHubResponse(vendRequestId, hubResponse) {
-    try {
-        console.log(`[SERVICE] Updating transaction for ID: ${vendRequestId} with status: ${status}`);
+    try {
+        // Find the final status from the hub's 'state' property
+        const finalStatus = STATUS_MAP[hubResponse.state] || STATUS_MAP['default'];
+        console.log(`[SERVICE] Updating transaction for ID: ${vendRequestId} with mapped status: ${finalStatus}`);
 
-        // Check for the conditional extraToken (Key Change Token)
-        let extraToken = null;
-        if (hubResponse.extraToken) {
-            extraToken = hubResponse.extraToken;
-            console.log(`[SERVICE] Found extraToken: ${extraToken}`);
-        }
+        // Check for the conditional extraToken (Key Change Token)
+        let extraToken = null;
+        if (hubResponse.extraToken) {
+            extraToken = hubResponse.extraToken;
+            console.log(`[SERVICE] Found extraToken: ${extraToken}`);
+        }
 
-        const updateData = {
-            hub_state: STATUS_MAP[status] || STATUS_MAP['Failed'],
-            hub_error_code: errorCode,
-            response_xml: details, // Storing raw response
-            token_received: token,
-            response_timestamp: new Date(),
-            troken_received: hubResponse.token,
-            invoice_num: hubResponse.invoice,
-            exta_token: extraToken 
-        };
+        const updateData = {
+            hub_state: finalStatus,
+            hub_error_code: hubResponse.state === '0' ? null : hubResponse.state, // Store error code if not success
+            response_xml: hubResponse.rawResponse, // Storing raw response
+            token_received: hubResponse.token,
+            response_timestamp: new Date(),
+            invoice_num: hubResponse.invoice,
+            extra_token: extraToken // Fixed typo
+        };
 
-        // Calls the model's 'updateByVendId' function
-        const updatedTransaction = await Transaction.updateByVendId(vendRequestId, updateData);
-        return updatedTransaction;
-    } catch (error) {
-        console.error('[SERVICE] Error in updateTransactionWithHubResponse:', error);
-        throw error;
-    }
-}*/
+        // Calls the model's 'updateByVendId' function
+        const updatedTransaction = await Transaction.updateByVendId(vendRequestId, updateData);
+        return updatedTransaction;
+    } catch (error) {
+        console.error('[SERVICE] Error in updateTransactionWithHubResponse:', error);
+        throw error;
+    }
+}
+
 
 
 // Export all the functions for the controllers to use
 module.exports = {
     findTransactionBy,
-    createVendTransaction
+    createVendTransaction,
+  pdateTransactionWithHubResponse
 };
