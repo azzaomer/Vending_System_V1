@@ -44,6 +44,7 @@ async function purchaseVending(req, res) {
         );
 
         if (!pendingTransaction) {
+            // This error is thrown if the create function returns null
             throw new Error('Failed to create initial transaction record in database.');
         }
 
@@ -60,32 +61,28 @@ async function purchaseVending(req, res) {
         // 4. Update our transaction with the hub's response
         console.log(`[CONTROLLER] Hub response received. Updating transaction...`);
         
-        // --- FIX: Pass the *entire* hubResponse object, not individual properties ---
-        const updatedTransaction = await transactionService.updateTransactionWithHubResponse(vendRequestId, hubResponse);
+        // --- CALL TO updateTransactionWithHubResponse REMOVED ---
+        const updatedTransaction = pendingTransaction; // Will only contain the "Pending" data
 
-        // --- 5. Send Final Response (FIX: Re-added the missing 'if' statement) ---
+        // 5. Send Final Response
         if (hubResponse.state === '0') {
             return res.status(200).json({
                 success: true,
                 message: 'Vending purchase successful.',
-                transaction: updatedTransaction
+                transaction: updatedTransaction // Will not reflect hub response
             });
         } else {
             // Hub reported an error (e.g., meter not found)
             return res.status(409).json({
                 success: false,
                 message: hubResponse.message || 'Hub reported an error.',
-                transaction: updatedTransaction
+                transaction: updatedTransaction // Will not reflect hub response
             });
         }
 
     } catch (error) {
         console.error(`[CONTROLLER] Critical error in handlePurchase:`, error.message);
 
-        // --- FIX: Correct call to update transaction on failure ---
-        // If a critical error happens (e.g., protocol service crashes),
-        // we must try to mark our transaction as "Failed".
-        
         // --- FIX: Correct call to update transaction on failure ---
         
         // This is the object the service expects
@@ -99,8 +96,10 @@ async function purchaseVending(req, res) {
 
         try {
             console.log(`[CONTROLLER] Attempting to mark transaction ${vendRequestId} as Failed...`);
-            // We MUST pass the failureResponse object as the second argument
-            await transactionService.updateTransactionWithHubResponse(vendRequestId, failureResponse);
+            
+            // --- CALL TO updateTransactionWithHubResponse REMOVED ---
+            // await transactionService.updateTransactionWithHubResponse(vendRequestId, failureResponse);
+        
         } catch (updateError) {
             console.error(`[CONTROLLER] Failed to even update transaction to failed state:`, updateError.message);
         }
@@ -109,6 +108,7 @@ async function purchaseVending(req, res) {
         return res.status(500).json({ success: false, message: 'Internal server error.' });
     }
 }
+
 
 
 // Export the controller functions
