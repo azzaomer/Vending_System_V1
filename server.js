@@ -4,6 +4,7 @@
 // Core dependencies
 const express = require('express');
 require('dotenv').config(); // Load environment variables from .env file
+const cors = require('cors');
 
 // --- NEW: Import Knex DB Config ---
 // We now use the Knex config file, NOT db_client.js
@@ -19,6 +20,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Middleware configuration MUST be first
+app.use(cors());
 app.use(express.json()); // Essential for parsing JSON request bodies
 app.use(express.urlencoded({ extended: true })); // For form data if needed
 
