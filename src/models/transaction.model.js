@@ -37,9 +37,10 @@ async function create(transactionData) {
         const [insertedId] = await db(TABLE_NAME)
             .insert(transactionData);
         
-        console.log(`[MODEL] Transaction created with ID: ${insertedId}`);
-        // Return the full new transaction object by finding it by its new ID
-        return await findBy('trans_id', insertedId);
+        console.log(`[MODEL] Transaction created with auto-increment ID: ${insertedId}`);
+        
+        // --- FIX: Find the new record by its auto-increment 'id', not 'trans_id' ---
+        return await findBy('id', insertedId);
 
     } catch (error) {
         console.error(`[MODEL] Error in create:`, error);
