@@ -113,6 +113,6 @@ async function handlePurchase(req, res) {
 
 // Export the controller functions
 module.exports = {
-    purchaseVending,
+    handlePurchase,
     checkItems
 };
