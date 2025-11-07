@@ -25,6 +25,10 @@ async function checkItems(req, res) {
 async function purchaseVending(req, res) {
     const { meterNum, amount } = req.body;
 
+    // --- THIS IS THE UPDATE ---
+    // The user's ID is now attached to the request by the auth.middleware.js
+    const userId = req.user.id; 
+
     // 1. Validate input
     if (!meterNum || !amount) {
         return res.status(400).json({ success: false, message: 'Missing required fields: meterNum and amount.' });
@@ -37,10 +41,13 @@ async function purchaseVending(req, res) {
     try {
         // 2. Create "Pending" transaction in our database
         console.log(`[CONTROLLER] Creating initial transaction record...`);
+        // --- THIS IS THE UPDATE ---
+        // We now pass the new userId variable to the service
         pendingTransaction = await transactionService.createVendTransaction(
             vendRequestId,
             meterNum,
-            amount
+            amount,
+            userId 
         );
 
         if (!pendingTransaction) {
