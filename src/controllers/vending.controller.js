@@ -25,9 +25,6 @@ async function checkItems(req, res) {
 async function purchaseVending(req, res) {
     const { meterNum, amount } = req.body;
 
-    // --- THIS IS THE UPDATE ---
-    // The user's ID is now attached to the request by the auth.middleware.js
-    const userId = req.user.id; 
 
     // 1. Validate input
     if (!meterNum || !amount) {
@@ -39,6 +36,8 @@ async function purchaseVending(req, res) {
 
     let pendingTransaction;
     try {
+
+        const userId = req.user.userId;
         // 2. Create "Pending" transaction in our database
         console.log(`[CONTROLLER] Creating initial transaction record...`);
         // --- THIS IS THE UPDATE ---
