@@ -37,7 +37,7 @@ async function findTransactionBy(column, value) {
  * @param {number} amount - The purchase amount.
  * @returns {Promise<object>} The newly created transaction object.
  */
-async function createVendTransaction(vendRequestId, meterNum, amount) {
+async function createVendTransaction(vendRequestId, meterNum, amount, userId) {
     try {
         console.log(`[SERVICE] Creating vend transaction for ID: ${vendRequestId}`);
         
@@ -49,7 +49,9 @@ async function createVendTransaction(vendRequestId, meterNum, amount) {
             hub_state: STATUS_MAP['Pending'],
             action_requested: 'VEND',
             request_timestamp: new Date(),
-            user_id: 1,
+            // --- THIS IS THE UPDATE ---
+            // The user_id from the token is now saved
+            user_id: userId, 
             request_xml: ''
         };
 
