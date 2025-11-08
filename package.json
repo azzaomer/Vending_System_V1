@@ -14,8 +14,8 @@
     "knex": "^3.1.0",
     "mysql2": "^3.9.7",
     "xml2js": "^0.6.2",
-    "bcryptjs": "^3.0.3",
-    "jsonwebtoken": "^9.0.2",
+    "bcryptjs": "^2.4.3",
+    "jsonwebtoken": "^8.5.1",
     "cors": "^2.8.5"
   },
   "devDependencies": {
