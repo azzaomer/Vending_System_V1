@@ -1,39 +1,60 @@
-// This new file handles the logic for logging in
+// P-1.1.4: Controller for handling authentication
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const userModel = require('../models/user.model');
+const User = require('../models/user.model');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-fallback-secret-key-32-chars';
+/**
+ * --- NEW GUARD CLAUSE ---
+ * Check for the JWT_SECRET at server start.
+ * This provides a clear error if the .env file is missing.
+ */
+if (!process.env.JWT_SECRET) {
+    console.error('[FATAL ERROR] JWT_SECRET is not defined in your .env file.');
+    console.error('Please add JWT_SECRET=your_super_secret_key to the .env file and restart the server.');
+    process.exit(1); // Stop the server if the secret is missing
+}
+// --- END GUARD CLAUSE ---
 
+
+/**
+ * Handles user login.
+ * @param {object} req - Express request object. Body contains { username, password }.
+ * @param {object} res - Express response object.
+ */
 async function login(req, res) {
-    const { username, password } = req.body;
-
-    if (!username || !password) {
-        return res.status(400).json({ success: false, message: 'Username and password are required.' });
-    }
-
     try {
-        // 1. Find the user in the database
-        const user = await userModel.findByUsername(username);
+        const { username, password } = req.body;
+
+        // 1. Find user by username
+        const user = await User.findByUsername(username);
         if (!user) {
-            return res.status(401).json({ success: false, message: 'Invalid credentials.' });
+            console.log(`[AUTH] Login failed: User '${username}' not found.`);
+            return res.status(400).json({ success: false, message: 'Invalid credentials.' });
         }
 
-        // 2. Compare the provided password with the stored hash
+        // 2. Compare password with the stored hash
         const isMatch = await bcrypt.compare(password, user.password_hash);
         if (!isMatch) {
-            return res.status(401).json({ success: false, message: 'Invalid credentials.' });
+            console.log(`[AUTH] Login failed: Invalid password for user '${username}'.`);
+            return res.status(400).json({ success: false, message: 'Invalid credentials.' });
         }
 
-        // 3. Passwords match! Create a JWT token
+        // 3. Create JWT payload
+        const payload = {
+            userId: user.id,
+            username: user.username
+        };
+
+        // 4. Sign the token
         const token = jwt.sign(
-            { userId: user.id, username: user.username },
-            JWT_SECRET,
-            { expiresIn: '1d' } // Token lasts for 1 day
+            payload,
+            process.env.JWT_SECRET, // This is now guaranteed to exist
+            { expiresIn: '1d' } // Token expires in 1 day
         );
 
-        // 4. Send the token back to the client
-        return res.status(200).json({
+        // 5. Send successful response
+        console.log(`[AUTH] Login successful for user '${username}'.`);
+        res.status(200).json({
             success: true,
             message: 'Login successful.',
             token: token,
@@ -41,8 +62,8 @@ async function login(req, res) {
         });
 
     } catch (error) {
-        console.error(`[CONTROLLER] Error in login:`, error);
-        return res.status(500).json({ success: false, message: 'Internal server error.' });
+        console.error('[CONTROLLER] Error in login:', error);
+        res.status(500).json({ success: false, message: 'Internal server error.' });
     }
 }
 
