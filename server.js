@@ -45,8 +45,14 @@ app.use(`${API_PREFIX}/auth`, authRoutes); // <-- ADDED THIS
 // --- NEW: Mount ROUTE Files ---
 // Use the route variables we imported above.
 // Express will now correctly send requests to your router files.
-app.use(`${API_PREFIX}/vending`, vendingRoutes);
-app.use(`${API_PREFIX}/inquiry`, inquiryRoutes);
+
+//app.use(`${API_PREFIX}/vending`, vendingRoutes);
+//app.use(`${API_PREFIX}/inquiry`, inquiryRoutes);
+
+
+// 2. Secure routes (PROTECTED by authMiddleware)
+app.use(`${API_PREFIX}/vending`, authMiddleware, vendingRoutes);
+app.use(`${API_PREFIX}/inquiry`, authMiddleware, inquiryRoutes);
 
 
 // --- Health Check Route ---
