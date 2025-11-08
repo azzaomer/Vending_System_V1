@@ -12,6 +12,7 @@ CREATE USER 'Qast_dev'@'localhost' IDENTIFIED WITH mysql_native_password BY 'Qas
 -- 3. Grant only the necessary permissions to the new user
 -- The user needs to SELECT (read), INSERT (create logs), UPDATE (update response time), and DELETE (if necessary for maintenance, but generally avoided in audit logs).
 
+
 GRANT ALL PRIVILEGES
 	ON vending_system_db.* TO 'vending_sys'@'localhost';
 
