@@ -70,25 +70,21 @@ async function create(transactionData) {
  * @param {object} updateData - An object containing the fields to update.
  * @returns {Promise<object>} The updated transaction object.
  */
-async function updateByVendId(trans_id, updateData) {
+async function updateByVendId(vendRequestId, updateData) {
     try {
-        console.log(`[MODEL] Updating transaction for trans_id: ${trans_id}`);
+        console.log(`[MODEL] Updating transaction for trans_id: ${vendRequestId}`);
         
         const count = await db(TABLE_NAME)
-            .where({ trans_id: trans_id })
+            .where({ trans_id: vendRequestId })
             .update(updateData);
 
         if (count === 0) {
-            throw new Error(`No transaction found with trans_id: ${trans_id} to update.`);
+            throw new Error(`No transaction found with trans_id: ${vendRequestId} to update.`);
         }
         
-        console.log(`[MODEL] Transaction updated for trans_id: ${trans_id}`);
+        console.log(`[MODEL] Transaction updated for vend_request_id: ${vendRequestId}`);
         // Return the updated object
-        //return await findBy('trans_id', vendRequestId);
-
-        // Return the updated object
-        return await findBy('trans_id', transId); // <-- CORRECT: Find by trans_id
-
+        return await findBy('trans_id', vendRequestId);
 
     } catch (error)
     {
@@ -96,6 +92,7 @@ async function updateByVendId(trans_id, updateData) {
         throw error;
     }
 }
+
 
 
 // Export all the functions for the service layer
