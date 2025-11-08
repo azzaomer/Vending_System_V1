@@ -15,6 +15,8 @@ const db = require('./src/config/db');
 const vendingRoutes = require('./src/routes/vending.routes.js');
 const inquiryRoutes = require('./src/routes/inquiry.routes.js');
 const authRoutes = require('./src/routes/auth.routes.js'); // <-- ADDED THIS
+const authMiddleware = require('./src/middleware/auth.middleware.js'); // <-- NEW
+
 
 
 // Import the new authentication middleware
