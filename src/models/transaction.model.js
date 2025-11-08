@@ -64,7 +64,7 @@ async function updateByVendId(vendRequestId, updateData) {
             .update(updateData);
 
         if (count === 0) {
-            throw new Error(`No transaction found with vend_request_id: ${vendRequestId} to update.`);
+            throw new Error(`No transaction found with trans_id: ${vendRequestId} to update.`);
         }
         
         console.log(`[MODEL] Transaction updated for vend_request_id: ${vendRequestId}`);
