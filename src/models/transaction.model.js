@@ -35,12 +35,18 @@ async function create(transactionData) {
         console.log(`[MODEL] Creating new transaction...`);
         // Knex 'insert' returns an array of the inserted IDs.
         const [insertedId] = await db(TABLE_NAME)
-            .insert(transactionData);
+            .insert(transactionData)
+            .returning('id'); 
         
         console.log(`[MODEL] Transaction created with auto-increment ID: ${insertedId}`);
         
         // --- FIX: Find the new record by its auto-increment 'id', not 'trans_id' ---
-        return await findBy('id', insertedId);
+        //return await findBy('id', insertedId);
+        
+        // Return the full new transaction object by finding it by its trans_id
+        // This ensures the service layer gets the correct object back.
+        return await findBy('trans_id', transactionData.trans_id);
+
 
     } catch (error) {
         console.error(`[MODEL] Error in create:`, error);
