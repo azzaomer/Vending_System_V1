@@ -1,29 +1,40 @@
-// This new file is a "gatekeeper" that protects your routes
+// P-1.1.4: Authentication Middleware
+// This file acts as a "gatekeeper" for secure routes.
+
 const jwt = require('jsonwebtoken');
-const JWT_SECRET = process.env.JWT_SECRET || 'your-fallback-secret-key-32-chars';
 
 function authMiddleware(req, res, next) {
-    // Get the token from the Authorization header
-    const authHeader = req.headers.authorization;
-
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    // 1. Get token from the 'Authorization' header
+    const authHeader = req.header('Authorization');
+    if (!authHeader) {
+        // --- THIS IS THE FIX (Part 1) ---
+        // Send the error AND return immediately.
         return res.status(401).json({ success: false, message: 'Access denied. No token provided.' });
     }
 
-    // Extract the token (e.g., "Bearer <token>" -> "<token>")
-    const token = authHeader.split(' ')[1];
+    // 2. Check if it's a "Bearer" token
+    const tokenParts = authHeader.split(' ');
+    if (tokenParts.length !== 2 || tokenParts[0] !== 'Bearer') {
+        // --- THIS IS THE FIX (Part 2) ---
+        return res.status(401).json({ success: false, message: 'Invalid token format. Expected "Bearer [token]".' });
+    }
 
+    const token = tokenParts[1];
+
+    // 3. Verify the token
     try {
-        // Verify the token
-        const decoded = jwt.verify(token, JWT_SECRET);
-
-        // Add the user's data to the request object
-        // Now all your controllers can access req.user
-        req.user = decoded; 
-
-        next(); // Token is valid, proceed to the next middleware/controller
-    } catch (error) {
-        return res.status(401).json({ success: false, message: 'Invalid token.' });
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        
+        // 4. Attach user info to the request object
+        req.user = decoded; // This adds { userId, username, iat } to req
+        
+        // 5. Call the next middleware (the controller)
+        next();
+        
+    } catch (ex) {
+        // --- THIS IS THE FIX (Part 3) ---
+        // Token is invalid or expired
+        return res.status(400).json({ success: false, message: 'Invalid token.' });
     }
 }
 
