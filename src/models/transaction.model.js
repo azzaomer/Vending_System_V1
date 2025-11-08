@@ -45,7 +45,16 @@ async function create(transactionData) {
         
         // Return the full new transaction object by finding it by its trans_id
         // This ensures the service layer gets the correct object back.
-        return await findBy('trans_id', transactionData.trans_id);
+        //return await findBy('trans_id', transactionData.trans_id);
+
+        // --- FIX ---
+        // Return the full new transaction object by finding it by its 'trans_id'.
+        // This is safer and ensures the service layer gets the correct object back.
+        const newTransaction = await findBy('trans_id', transactionData.trans_id);
+        if (!newTransaction) {
+            throw new Error('Failed to find newly created transaction by trans_id.');
+        }
+        return newTransaction;
 
 
     } catch (error) {
@@ -61,21 +70,25 @@ async function create(transactionData) {
  * @param {object} updateData - An object containing the fields to update.
  * @returns {Promise<object>} The updated transaction object.
  */
-async function updateByVendId(vendRequestId, updateData) {
+async function updateByVendId(trans_id, updateData) {
     try {
-        console.log(`[MODEL] Updating transaction for trans_id: ${vendRequestId}`);
+        console.log(`[MODEL] Updating transaction for trans_id: ${trans_id}`);
         
         const count = await db(TABLE_NAME)
-            .where({ trans_id: vendRequestId })
+            .where({ trans_id: trans_id })
             .update(updateData);
 
         if (count === 0) {
-            throw new Error(`No transaction found with vend_request_id: ${vendRequestId} to update.`);
+            throw new Error(`No transaction found with trans_id: ${trans_id} to update.`);
         }
         
-        console.log(`[MODEL] Transaction updated for vend_request_id: ${vendRequestId}`);
+        console.log(`[MODEL] Transaction updated for trans_id: ${trans_id}`);
         // Return the updated object
-        return await findBy('trans_id', vendRequestId);
+        //return await findBy('trans_id', vendRequestId);
+
+        // Return the updated object
+        return await findBy('trans_id', transId); // <-- CORRECT: Find by trans_id
+
 
     } catch (error)
     {
