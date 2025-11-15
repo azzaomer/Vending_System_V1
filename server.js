@@ -20,7 +20,21 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Middleware configuration MUST be first
-app.use(cors());
+// Explicit CORS configuration for Vite dev origin
+app.use(cors({
+  origin: 'http://localhost:5173',
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: false,
+}));
+
+// Optional: respond to preflight checks explicitly (not strictly necessary with cors())
+app.options('*', cors({
+  origin: 'http://localhost:5173',
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+}));
+
 app.use(express.json()); // Essential for parsing JSON request bodies
 app.use(express.urlencoded({ extended: true })); // For form data if needed
 
