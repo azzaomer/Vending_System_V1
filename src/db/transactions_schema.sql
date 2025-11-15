@@ -33,6 +33,12 @@ CREATE TABLE transactions (
     hub_status_code VARCHAR(10)
 );
 
+CREATE TABLE IF NOT EXISTS users (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    username VARCHAR(50) UNIQUE NOT NULL,
+    password_hash VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
 -- Indexing for fast search (F-1.1.3: SEARCH by transID or meterNum)
 CREATE INDEX idx_trans_id ON transactions (trans_id);
 CREATE INDEX idx_meter_num ON transactions (meter_num);
