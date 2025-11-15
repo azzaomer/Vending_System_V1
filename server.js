@@ -14,10 +14,6 @@ const db = require('./src/config/db');
 // We import the ROUTERS, not the controllers
 const vendingRoutes = require('./src/routes/vending.routes.js');
 const inquiryRoutes = require('./src/routes/inquiry.routes.js');
-const authRoutes = require('./src/routes/auth.routes.js'); // <-- ADDED THIS
-// Import the new authentication middleware
-const authMiddleware = require('./src/middleware/auth.middleware.js');
-
 
 // --- Application Setup ---
 const app = express();
@@ -38,21 +34,11 @@ app.use((req, res, next) => {
 // --- API Routes ---
 const API_PREFIX = '/api/v1';
 
-
-// --- Public auth routes (e.g., /login) ---
-app.use(`${API_PREFIX}/auth`, authRoutes); // <-- ADDED THIS
-
 // --- NEW: Mount ROUTE Files ---
 // Use the route variables we imported above.
 // Express will now correctly send requests to your router files.
-
-//app.use(`${API_PREFIX}/vending`, vendingRoutes);
-//app.use(`${API_PREFIX}/inquiry`, inquiryRoutes);
-
-
-// 2. Secure routes (PROTECTED by authMiddleware)
-app.use(`${API_PREFIX}/vending`, authMiddleware, vendingRoutes);
-app.use(`${API_PREFIX}/inquiry`, authMiddleware, inquiryRoutes);
+app.use(`${API_PREFIX}/vending`, vendingRoutes);
+app.use(`${API_PREFIX}/inquiry`, inquiryRoutes);
 
 
 // --- Health Check Route ---
